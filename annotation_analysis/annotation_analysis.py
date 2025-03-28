@@ -1,9 +1,13 @@
 from statsmodels.stats.inter_rater import fleiss_kappa
 import numpy as np
 import pandas as pd
+from pathlib import Path
+
+# Get the project root 
+project_root = Path(__file__).parent.parent  
 
 # Load the dataset
-df = pd.read_csv("/Users/olivergyimothy/Documents/Github/2025-FYP-Orca/annotation_data/result_oliver.csv")
+df = pd.read_csv(project_root / "annotation_data" / "result_oliver.csv")
 
 ratings_cols = ["Rating_1", "Rating_2", "Rating_3", "Rating_4"]
 
