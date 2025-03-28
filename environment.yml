@@ -22,4 +22,3 @@ dependencies:
   - libzlib=1.2.13
   - openssl=3.4.1
   - sqlite=3.45.3
-  - ncurses=6.4
