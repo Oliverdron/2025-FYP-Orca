@@ -26,3 +26,7 @@ for i, row in ratings.iterrows():
 
 # Convert to a DataFrame for readability (optional)
 matrix_df = pd.DataFrame(rating_matrix, columns=[f"Rating={c}" for c in categories])
+
+#getting the kappa score
+kappa_score = fleiss_kappa(rating_matrix)
+print(f"Kappa Score: {kappa_score}")
