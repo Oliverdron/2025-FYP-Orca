@@ -173,3 +173,5 @@ cython_debug/
 # Ignore .DS_Store files for Mac users
 .DS_Store
 
+#ignore images in data
+data/
