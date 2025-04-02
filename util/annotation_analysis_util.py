@@ -3,15 +3,20 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
-# Get the project root 
-project_root = Path(__file__).parent.parent  
 
+# Get the project root and annotation_data path
+project_root = Path(__file__).parent.parent
+annotation_path = Path(__file__).parent
 # Load the dataset
-df = pd.read_csv(project_root / "annotation_data" / "result_oliver.csv")
+dataframes = []
+for path in annotation_path.iterdir():
+    if str(path).endswith(".csv"):
+     dataframes.append(pd.read_csv(path))
+
 
 ratings_cols = ["Rating_1", "Rating_2", "Rating_3", "Rating_4"]
 
-# Drop rows with any missing ratings (optional, depending on your needs)
+# Drop rows with any missing ratings 
 df_clean = df.dropna(subset=ratings_cols)
 
 # Convert ratings to integers
