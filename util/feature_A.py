@@ -93,3 +93,4 @@ def find_midpoint_v1(image):
     row_mid = image.shape[0] / 2
     col_mid = image.shape[1] / 2
     return row_mid, col_mid
+
