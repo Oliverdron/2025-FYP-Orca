@@ -16,11 +16,11 @@ class EDAAnalyzer:
         """Initialize with dataset paths."""
         self.df = pd.read_csv(data_csv)
         self.image_dir = image_dir
-        self.image_loader = ImageDataLoader()
+        self.image_loader = ImageDataLoader(image_dir)
 
     def plot_class_distribution(self, save_path=None):
         """Plot class distribution using matplotlib only."""
-        counts = self.df["diagnosis"].value_counts()
+        counts = self.df["label"].value_counts()
         plt.figure(figsize=(10, 5))
         
         # Custom bar plot with percentage labels
