@@ -1,4 +1,5 @@
 import random
+import os
 
 import cv2
 
@@ -39,6 +40,10 @@ class ImageDataLoader:
 
         # get a sorted list of all files in the directory
         # fill in with your own code below
+        self.file_list = sorted(
+            [os.path.join(directory, f) for f in os.listdir(directory) if
+             f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff'))]
+        )
 
         if not self.file_list:
             raise ValueError("No image files found in the directory.")
@@ -54,5 +59,11 @@ class ImageDataLoader:
         return self.num_batches
 
     def __iter__(self):
-        # fill in with your own code below
-        pass
+        for file_path in self.file_list[(self.bounds[0]+1):(self.bounds[1]+2)]:
+            img_rgb, img_gray = readImageFile(file_path)
+
+            if self.transform:
+                img_rgb = self.transform(img_rgb)
+                img_gray = self.transform(img_gray)
+
+            yield img_rgb, img_gray
