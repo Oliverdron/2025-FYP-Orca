@@ -175,3 +175,6 @@ cython_debug/
 
 #ignore images in data
 data/
+
+#ignore annotation analysis, as it is not required in the hierarchy
+util/annotation_analysis_util.py
