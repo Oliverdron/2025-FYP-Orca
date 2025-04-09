@@ -70,7 +70,7 @@ for df in dataframes:
 
 
     bars = plt.bar(majority_counts.index, majority_counts.values, color = [{-1:"gray", 0:"orange", 1:"skyblue", 2:"green"}[cat] for cat in majority_counts.index])
-    plt.xticks([0,1,2], ["0(None)","1(Some)","2(A lot)"])
+    plt.xticks([-1,0,1,2], ["No majority","0(None)","1(Some)","2(A lot)"])
     plt.xlabel("Hair Density Rating")
     plt.ylabel("Percentage")
     plt.title(f"Overall Distribution of Group {df.at[2,"Group_ID"]}, n={ratings.shape[0]}")
