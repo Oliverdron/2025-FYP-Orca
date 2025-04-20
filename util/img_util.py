@@ -21,7 +21,7 @@ def saveImageFile(img_rgb, file_path):
 
 
 class ImageDataLoader:
-    def readImageFile(file_path):
+    def readImageFile(self, file_path):
         # read image as an 8-bit array
         img_bgr = cv2.imread(file_path)
 

@@ -52,7 +52,7 @@ class EDAAnalyzer:
         
         for _, row in sample_df.iterrows():
             img_path = os.path.join(self.image_dir, row["image_path"])
-            img = self.image_loader.load(img_path)
+            _, img = self.image_loader.readImageFile(img_path)
             
             if img is not None:
                 stats.append({
@@ -91,5 +91,5 @@ class EDAAnalyzer:
 
 if __name__ == "__main__":
     analyzer = EDAAnalyzer(data_csv="../dataset.csv", 
-                          image_dir="../data/")
+                          image_dir="../data/images")
     analyzer.generate_report()
