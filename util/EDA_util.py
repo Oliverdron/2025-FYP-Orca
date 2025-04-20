@@ -65,7 +65,7 @@ class EDAAnalyzer:
         print()  # Newline after progress
         return pd.DataFrame(stats)
 
-    def generate_report(self, output_dir="result/eda/"):
+    def generate_report(self, output_dir="..//result/eda/"):
         """Generate complete EDA report."""
         os.makedirs(output_dir, exist_ok=True)
         
