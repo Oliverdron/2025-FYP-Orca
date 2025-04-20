@@ -3,18 +3,6 @@ import os
 
 import cv2
 
-def readImageFile(file_path):
-    # read image as an 8-bit array
-    img_bgr = cv2.imread(file_path)
-
-    # convert to RGB
-    img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-
-    # convert the original image to grayscale
-    img_gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY)
-
-    return img_rgb, img_gray
-
 
 def saveImageFile(img_rgb, file_path):
     try:
@@ -33,6 +21,18 @@ def saveImageFile(img_rgb, file_path):
 
 
 class ImageDataLoader:
+    def readImageFile(file_path):
+        # read image as an 8-bit array
+        img_bgr = cv2.imread(file_path)
+
+        # convert to RGB
+        img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+
+        # convert the original image to grayscale
+        img_gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY)
+
+        return img_rgb, img_gray
+    
     def __init__(self, directory, shuffle=False, transform=None):
         self.directory = directory
         self.shuffle = shuffle
@@ -60,7 +60,7 @@ class ImageDataLoader:
 
     def __iter__(self):
         for file_path in self.file_list[(self.bounds[0]+1):(self.bounds[1]+2)]:
-            img_rgb, img_gray = readImageFile(file_path)
+            img_rgb, img_gray = self.readImageFile(file_path)
 
             if self.transform:
                 img_rgb = self.transform(img_rgb)
