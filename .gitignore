@@ -173,8 +173,9 @@ cython_debug/
 # Ignore .DS_Store files for Mac users
 .DS_Store
 
-#ignore images in data
+#ignore images in data but not annotations
 data/
+!data/annotation/
 
 #ignore annotation analysis, as it is not required in the hierarchy
 util/annotation_analysis_util.py
