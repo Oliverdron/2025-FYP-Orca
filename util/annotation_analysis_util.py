@@ -79,7 +79,7 @@ for df in dataframes:
     plt.savefig(project_root / "result" / f"distributions{df.at[2,"Group_ID"]}.png")
     plt.clf()
     print(df.at[2,"Group_ID"])
-    print(ratings)
+    #print(ratings)
 
 
 
@@ -87,6 +87,12 @@ for df in dataframes:
     
 result = pd.DataFrame.from_dict(kappa_scores, orient="index",columns=["Kappa_score"])
 print(result)
+#   Kappa_score
+#O     0.708008
+#G     0.699370
+#J     0.586344
+#B     0.880848
+#N     0.709016
 #Interpretation:
 #κ < 0.20: Slight
 #0.21–0.40: Fair
