@@ -79,7 +79,7 @@ for df in dataframes:
     plt.savefig(project_root / "result" / f"distributions{df.at[2,"Group_ID"]}.png")
     plt.clf()
     print(df.at[2,"Group_ID"])
-    print(ratings)
+    #print(ratings)
 
 
 
@@ -87,6 +87,12 @@ for df in dataframes:
     
 result = pd.DataFrame.from_dict(kappa_scores, orient="index",columns=["Kappa_score"])
 print(result)
+#   Kappa_score
+#O     0.708008
+#G     0.699370
+#J     0.586344
+#B     0.880848
+#N     0.709016
 #Interpretation:
 #κ < 0.20: Slight
 #0.21–0.40: Fair
@@ -94,14 +100,14 @@ print(result)
 #0.60: Substantial
 # group J has the lowest k score= 0.586 and group B has the highest k score=0.88, lets analyze them further
 
-print(dataframes)
+#print(dataframes)
 # group J -> 5 annotators and n=200, need to take into consideration
 for i in range(1,5):
     for j in range(i,5):
         raterA = f"Rating_{i}"
         raterB = f"Rating_{j}"
         ratings = convert_to_ratings(dataframes[1])
-        print(dataframes[2])
+        #print(dataframes[2])
         #Create the confusion matrix
         cm = confusion_matrix(ratings[raterA],ratings[raterB]) 
         

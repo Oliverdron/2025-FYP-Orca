@@ -18,7 +18,7 @@ from scipy.spatial import ConvexHull
 
 
 
-def mean_asymmetry(mask, rotations = 30):
+def mean_asymmetry(mask, rotations = 30): #main function
     
     asymmetry_scores = rotation_asymmetry(mask, rotations)
     mean_score = sum(asymmetry_scores.values()) / len(asymmetry_scores)
