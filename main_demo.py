@@ -17,7 +17,7 @@ from util import (
     extract_feature_B,
     extract_feature_C,
     # ALSO IMPORT EXTENDED FEATURES IN EXTENDED.py LATER!!!
-    classifier_model
+    #classifier_model
 )
 
 FEATURE_MAP = {

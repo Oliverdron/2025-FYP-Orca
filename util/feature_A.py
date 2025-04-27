@@ -1,96 +1,108 @@
-import cv2
-import numpy as np
-from math import sqrt, floor, ceil, nan, pi
-from skimage import color, exposure
-from skimage.color import rgb2gray
-from skimage.feature import blob_log
-from skimage.filters import threshold_otsu
-from skimage.measure import label, regionprops
-from skimage.transform import resize
-from skimage.transform import rotate
-from skimage import morphology
-from sklearn.cluster import KMeans
-from skimage.segmentation import slic
-from skimage.color import rgb2hsv
-from scipy.stats import circmean, circvar, circstd
-from statistics import variance, stdev
-from scipy.spatial import ConvexHull
+from util import (
+    np,
+    rotate,
+    label,
+    regionprops,
+    Record
+)
 
+def asymmetry(record: 'Record', k_blobs: int = 3, n_angles: int = 16) -> float | np.nan:
+    """
+        Compute the mean rotation-invariant asymmetry across the top-k blobs in the Record's mask.
 
+        Compute asymmetry score by:
+            1) Binarizing the lesion mask
+            2) Labeling and keeping the k_blobs largest components
+            3) For each blob:
+                a) Rotating via nearest-neighbor through n_angles between 0-180 degrees
+                b) Tight-cropping to its bounding box
+                c) Splitting in half horizontally/vertically and XOR'ing
+                d) Normalizing mismatch by blob area
+            4) Averaging per-blob asymmetry scores
 
-def mean_asymmetry(mask, rotations = 30): #main function
+        Args:
+            rec (Record): Record instance containing every bit of information about the image
+            k_blobs (int): number of biggest blobs to keep for the asymmetry calculation
+            n_angles (int): number of sample rotations between 0 degrees and 180 degrees
+        
+        Returns:
+            float: mean asymmetry in [0, 1] across the top-k blobs, or np.nan if no blobs are found
+    """
+    # Thresh image contains either 0 or 255 values, so we need to convert it to boolean for easier processing
+    bin_mask = record.thresh.astype(bool)
     
-    asymmetry_scores = rotation_asymmetry(mask, rotations)
-    mean_score = sum(asymmetry_scores.values()) / len(asymmetry_scores)
-
-    return mean_score          
-
-def rotation_asymmetry(mask, n: int):
-
-    asymmetry_scores = {}
-
-    for i in range(n):
-
-        degrees = 90 * i / n
-
-        rotated_mask = rotate(mask, degrees)
-        cutted_mask = cut_mask(rotated_mask)
-
-        asymmetry_scores[degrees] = asymmetry(cutted_mask)
-
-    return asymmetry_scores
-
-def asymmetry(mask):
+    # The label function returns a labeled array where each True component has a unique id
+    labeled = label(bin_mask.astype(int))
     
+    # The regionprops function scans the labeled array and returns an object (one per blob) that contains stats about it
+    props = regionprops(labeled)
 
-    row_mid, col_mid = find_midpoint_v1(mask)
+    # If no blobs found, return NaN to indicate possible mask issue
+    if not props:
+        return np.nan
 
-    upper_half = mask[:ceil(row_mid), :]
-    lower_half = mask[floor(row_mid):, :]
-    left_half = mask[:, :ceil(col_mid)]
-    right_half = mask[:, floor(col_mid):]
+    # Keep the top-k biggest blobs (ensure we don't exceed the number of blobs found)
+    props = sorted(props, key=lambda r: r.area, reverse=True)[:min(k_blobs, len(props))]
 
-    flipped_lower = np.flip(lower_half, axis=0)
-    flipped_right = np.flip(right_half, axis=1)
+    # Storing the blobs' scores, then taking its mean later
+    blob_scores = []
 
-    hori_xor_area = np.logical_xor(upper_half, flipped_lower)
-    vert_xor_area = np.logical_xor(left_half, flipped_right)
+    # Precompute evenly spaced angles
+    angles = np.linspace(0, 180, n_angles, endpoint=False)
 
-    total_pxls = np.sum(mask)
-    hori_asymmetry_pxls = np.sum(hori_xor_area)
-    vert_asymmetry_pxls = np.sum(vert_xor_area)
+    # Iterate through each blob one-by-one
+    for prop in props:
+        # Isolating the current blob
+        single = (labeled == prop.label)
 
-    asymmetry_score = (hori_asymmetry_pxls + vert_asymmetry_pxls) / (total_pxls * 2)
+        # To store each rotation's asymmetry score
+        scores = []
 
-    return round(asymmetry_score, 4)
+        # Iterate through each angle
+        for angle in angles:
+            # Rotate with nearest-neighbor -> stays boolean
+            rot = rotate(single.astype(float), # Transformation works on numeric arrays
+                        angle,
+                        # When rotating an image, most of the new pixel grid does not line up exactly with the old one
+                        # order=0 is to just grab the color/intensity of the single closest original pixel, which is fast but the result is chunky
+                        order=0,
+                        preserve_range=True # Avoid rescaling the data
+                        ).astype(bool) # Turns the numeric array back into a boolean one
 
-def cut_mask(mask):
-    
-    col_sums = np.sum(mask, axis=0)
-    row_sums = np.sum(mask, axis=1)
+            rows = np.any(rot, axis=1) # Find rows with at least one True value
+            cols = np.any(rot, axis=0) # Find columns with at least one True value
 
-    active_cols = []
-    for index, col_sum in enumerate(col_sums):
-        if col_sum != 0:
-            active_cols.append(index)
+            # np.where returns the indices of True rows/columns
+            # np.where(rows/cols)[0] extracts the array of indices
+            # np.where(rows)[0][[0, -1]] gives the first (topmost\leftmost) and last (bottommost/rightmost) indices of the True values
+            rmin, rmax = np.where(rows)[0][[0, -1]]
+            cmin, cmax = np.where(cols)[0][[0, -1]]
 
-    active_rows = []
-    for index, row_sum in enumerate(row_sums):
-        if row_sum != 0:
-            active_rows.append(index)
+            crop = rot[rmin:rmax+1, cmin:cmax+1] # Slice out the skin lesion area (+1 to include the last index)
 
-    col_min = active_cols[0]
-    col_max = active_cols[-1]
-    row_min = active_rows[0]
-    row_max = active_rows[-1]
+            # Take the center of the blob to split it into 4 quadrants later
+            cy2, cx2 = crop.shape[0] / 2, crop.shape[1] / 2
 
-    cut_mask_ = mask[row_min:row_max+1, col_min:col_max+1]
+            top = crop[: int(np.ceil(cy2)), :] # Top half is from the first row to the center row (inclusive)
+            bottom = crop[int(np.floor(cy2)) :, :] # Bottom half is from the center row (exclusive) to the last row
+            left = crop[:, : int(np.ceil(cx2))] # Left half is from the first column to the center column (inclusive)
+            right = crop[:, int(np.floor(cx2)) :] # Right half is from the center column (exclusive) to the last column
 
-    return cut_mask_
+            # 5) XOR-based mismatch with its flipped counterpart to find the asymmetry
+            h_xor = np.logical_xor(top, np.flip(bottom, 0))
+            v_xor = np.logical_xor(left, np.flip(right, 1))
 
-def find_midpoint_v1(image):
-    
-    row_mid = image.shape[0] / 2
-    col_mid = image.shape[1] / 2
-    return row_mid, col_mid
+            # The area of the skins lesion is the sum of all pixels in the crop
+            area = crop.sum()
+            # Should not happen, but if the area is 0, the score is 0
+            if area == 0:
+                scores.append(0.0)
+            else:
+                # The score is the sum of the XORs divided by the area (normalized to have a value between 0 and 1)
+                scores.append((h_xor.sum() + v_xor.sum()) / (2 * area))
+        
+        # Append the mean of the scores for this blob to the list
+        blob_scores.append(float(np.mean(scores)))
 
+    # Overall asymmetry is the average across all sampled rotations
+    return float(np.mean(blob_scores))

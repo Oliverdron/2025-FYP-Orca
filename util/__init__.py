@@ -5,6 +5,7 @@ import os
 import random
 from math import sqrt, floor, ceil, nan, pi
 from statistics import variance, stdev
+import json
 
 # ── Numerical & image processing ────────────────────────────────────────────
 import cv2
@@ -29,9 +30,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, confusion_matrix
 
 # ── Submodule exports ─────────────────────────────────────────────────────────
-from .img_util       import Dataset
+from .img_util       import Dataset, Record
 from .inpaint_util   import removeHair
-from .feature_A      import mean_asymmetry       as extract_feature_A
+from .feature_A      import asymmetry as extract_feature_A
 from .feature_B      import measure_streaks      as extract_feature_B
 from .feature_C      import get_multicolor_rate as extract_feature_C
 from .classifier     import classifier_model
