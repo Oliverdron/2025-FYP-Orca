@@ -1,15 +1,12 @@
-"""
-main.py
+# TODO:
+# 1) Validate the original mask (and threshold mask) for emptiness and log warnings if no foreground is found!
+# 2) # "- Implement automatic methods for hair feature extraction. You can use annotation agreement to adapt / evaluate your developed method" ???
+# 3) Implement two or more different classifier models on the same feature matrix
+#       Logistic Regression: Baseline; Fast, well-understood; Linear decision boundary
+#       Random Forest: Captures non-linear interactions; Handles outliers, gives feature importances; Can overfit on noisy features
+#       Gradient Boosting: State-of-the-art on tabular data; Very high accuracy; Training can be slower
+# Flag cases when feature prediction differs between models, could also check for prediction probability differences
 
-    1.) Finds "dataset.csv" next to this script
-    2.) Loads metadata and images using "util/img_util.py"
-    3.) Applies hair removal + feature A/B/C extraction
-    4.) Trains & evaluates a logistic regression classifier
-    5.) Writes predictions to result/result_baseline.csv
-
-"""
-
-# --- Standard library imports ---
 from util import (
     sys, Path, pd,
     Dataset,
@@ -51,11 +48,10 @@ def main():
 
     # 5) Pass the Dataset to the classifier model for training and evaluation
 
-
     # NEED TO WORK ON CLASSIFIER.PY -> BUILD MODEL
     # THE RECORD CLASS COULD STORE PREDICTED VALUES IF NEEDED FOR A BETTER RESULT ANALYSIS
 
-
+    # 6) Represent test accuracy, write results to CSV and possibly display predictions on a plot
 
 
     # select only the baseline features.

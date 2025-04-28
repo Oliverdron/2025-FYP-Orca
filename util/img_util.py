@@ -52,8 +52,9 @@ class Record:
             file_path = os.path.join(self.dataset.data_dir, self.filename),
             mask_path = os.path.join(self.dataset.data_dir, self.mask_fname) if self.mask_fname else None
         )
+
         # Apply hair removal
-        self.blackhat, self.thresh, self.img_out = removeHair(self.img_rgb, self.img_gray) # COULD BE IMPROVED BY PERSONALIZED PARAMETERS?
+        self.blackhat, self.thresh, self.img_out = removeHair(self.img_rgb, self.img_gray)
 
     def set_feature(self, name: str, value) -> None:
         # Stores one feature value under self.features[name]
@@ -131,7 +132,7 @@ class Dataset:
         # If the file doesn't exist/the file is corrupted/the file is not a valid image, it will return None
         if img_bgr is None:
             raise ValueError(f"Unable to load image at {file_path}")
-            
+
         # The function returns the image in RGB format
         img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
 
@@ -140,7 +141,7 @@ class Dataset:
 
         # If a mask path is provided, read the mask image in grayscale format
         # The read function returns None if the file does not exist
-        original_mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+        original_mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) # NEED TO CHECK IF THE ORIGINAL MASK IS VALID (NOT BLANK)
 
         return img_rgb, img_gray, original_mask
 
