@@ -25,9 +25,11 @@ from skimage.segmentation import slic
 # ── Scikit-learn & Pandas ─────────────────────────────────────────────────────
 import pandas as pd
 from sklearn.cluster import KMeans
+from sklearn.base import BaseEstimator
 from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 
 # ── Submodule exports ─────────────────────────────────────────────────────────
 from .img_util       import Dataset, Record

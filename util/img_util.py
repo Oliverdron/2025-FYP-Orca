@@ -65,7 +65,7 @@ class Record:
         return self.features.get(name)
 
 class Dataset:
-    def __init__(self, feature_extractors: dict, csv_path: str, data_dir: str, image_col: str = "image_path", mask_col: str = "mask_path", label_col: str = "label") -> None:
+    def __init__(self, feature_extractors: dict[str, callable], csv_path: str, data_dir: str, image_col: str = "image_path", mask_col: str = "mask_path", label_col: str = "label") -> None:
         """
             Dataset (parent class):
                 Args:
