@@ -2,11 +2,11 @@
 import sys
 from pathlib import Path
 import os
+# To avoid multithreading issues with OpenCV and NumPy, set the number of threads to 1
 os.environ["OMP_NUM_THREADS"] = "1"
 import random
 from math import sqrt, floor, ceil, nan, pi
 from statistics import variance, stdev
-import json
 
 # ── Numerical & image processing ────────────────────────────────────────────
 import cv2

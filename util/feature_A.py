@@ -7,7 +7,7 @@ from util import (
     regionprops
 )
 
-def asymmetry(record: 'Record', k_blobs: int = 3, n_angles: int = 16) -> float:
+def asymmetry(record: 'Record', k_blobs: int = 3, n_angles: int = 8) -> float:
     """
         Compute the mean rotation-invariant asymmetry across the top-k blobs in the Record's mask.
 
@@ -49,7 +49,7 @@ def asymmetry(record: 'Record', k_blobs: int = 3, n_angles: int = 16) -> float:
     blob_scores = []
 
     # Precompute evenly spaced angles
-    angles = np.linspace(0, 180, n_angles, endpoint=False)
+    angles = np.linspace(0, 90, n_angles, endpoint=False)
 
     # Iterate through each blob one-by-one
     for prop in props:

@@ -15,7 +15,7 @@ from util.feature_C      import color_heterogeneity as extract_feature_C
 from util.classifier     import classifier_model
 
 from util import (
-    sys, Path, pd,
+    Path, pd,
     LogisticRegression,
     GradientBoostingClassifier,
     confusion_matrix,
@@ -23,7 +23,7 @@ from util import (
 )
 
 FEATURE_MAP = {
-    "feat_A": extract_feature_A,
+    #"feat_A": extract_feature_A,
     "feat_B": extract_feature_B,
     "feat_C": extract_feature_C,
     # ALSO IMPORT EXTENDED FEATURES IN EXTENDED.py LATER!!!
@@ -45,17 +45,11 @@ def main():
     # 1) Retrieve the absolute path to the directory containing this script
     base = get_base_dir()
 
-    # 2) Locate & validate dataset.csv
-    csv_path = base / "dataset.csv"
-    if not csv_path.exists():
-        sys.exit(f"Error: dataset.csv not found in {base}")
-
-    # 3) Set up image folder and result output path
-    data_dir = base / "data"
+    # 2) Set up result output path
     output_path = base / "result" / "result_baseline.csv"
 
     # 4) Build Dataset so we can train/evaluate/test our model directly (this also calls Record.load() for each image)
-    ds = Dataset(FEATURE_MAP, csv_path, data_dir)
+    ds = Dataset(FEATURE_MAP, base)
 
     # 5) Pass the Dataset to the classifier model for training and evaluation
     result = classifier_model(ds, list(FEATURE_MAP.keys()), CLASSIFIERS, test_size=0.3, random_state=42, output_path=output_path)
