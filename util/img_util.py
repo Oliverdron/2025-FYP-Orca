@@ -7,6 +7,8 @@ from util import (
     sys
 )
 
+CANCEROUS = ("BCC","MEL","SCC")
+
 class Record:
     """
         Record (child class):
@@ -19,7 +21,7 @@ class Record:
             Attributes:
                 dataset (Dataset): The parent Dataset instance
                 filename (str): The name of the image file
-                label (str): The label of the image
+                label (boolean): The label of the image, True if cancerous, False if not
                 img_rgb (ndarray): The image in RGB format
                 img_gray (ndarray): The image in grayscale format
                 mask_fname (str | None): The filename of the mask (if exists)
@@ -37,7 +39,7 @@ class Record:
     def __init__(self, dataset: 'Dataset', filename: str, label: str, mask_fname: str = None) -> None:
         self.dataset = dataset
         self.filename = filename
-        self.label = label
+        self.label = True if label in CANCEROUS else False 
         self.img_rgb = None
         self.img_gray = None
         self.mask_fname = mask_fname # Filename from CSV or None
@@ -64,6 +66,7 @@ class Record:
     def get_feature(self, name: str) -> float | None:
         # Returns the value of the feature stored under self.features[name] or None
         return self.features.get(name)
+        
 
 class Dataset:
     def __init__(self, feature_extractors: dict[str, callable], base_dir: str, image_col: str = "image_path", mask_col: str = "image_mask_path", label_col: str = "label") -> None:
