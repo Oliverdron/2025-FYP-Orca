@@ -9,7 +9,7 @@ from util import (
     pdist
 )
 
-def color_heterogeneity(record: 'Record', n_clusters: int = 4, downscale: float = 1.0, k_blobs: int = 3) -> float | np.nan:
+def color_heterogeneity(record: 'Record', n_clusters: int = 4, downscale: float = 1.0, k_blobs: int = 3) -> float:
     """
         The function computes the mean color heterogeneity across the top-k blobs
 

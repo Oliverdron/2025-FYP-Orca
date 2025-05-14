@@ -2,6 +2,7 @@
 import sys
 from pathlib import Path
 import os
+os.environ["OMP_NUM_THREADS"] = "1"
 import random
 from math import sqrt, floor, ceil, nan, pi
 from statistics import variance, stdev

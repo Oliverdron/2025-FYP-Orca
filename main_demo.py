@@ -55,7 +55,7 @@ def main():
     output_path = base / "result" / "result_baseline.csv"
 
     # 4) Build Dataset so we can train/evaluate/test our model directly (this also calls Record.load() for each image)
-    ds = Dataset(FEATURE_MAP, csv_path, data_dir, filename_col="image_path", label_col="label")
+    ds = Dataset(FEATURE_MAP, csv_path, data_dir)
 
     # 5) Pass the Dataset to the classifier model for training and evaluation
     result = classifier_model(ds, list(FEATURE_MAP.keys()), CLASSIFIERS, test_size=0.3, random_state=42, output_path=output_path)

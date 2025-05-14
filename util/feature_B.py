@@ -7,7 +7,7 @@ from util import (
     regionprops
 )
 
-def border_irregularity(record: 'Record', k_blobs: int = 3) -> float | np.nan:
+def border_irregularity(record: 'Record', k_blobs: int = 3) -> float:
     """
         The function computes the mean combined index M = I * (1 - C) over the top-k blobs using the following steps:
             1) I = perimeter^2 / (4 * pi * area) -> spikiness measure

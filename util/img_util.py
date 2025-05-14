@@ -50,8 +50,8 @@ class Record:
     def load(self) -> None:
         # Load the image and possibly its original mask using the parent class's readImageFile method
         self.img_rgb, self.img_gray, self.original_mask = self.dataset.readImageFile(
-            file_path = os.path.join(self.dataset.data_dir, self.filename),
-            mask_path = os.path.join(self.dataset.data_dir, self.mask_fname) if self.mask_fname else None
+            file_path = os.path.join(self.dataset.data_dir, "images", self.filename),
+            mask_path = os.path.join(self.dataset.data_dir, "lesion_masks", self.mask_fname) if isinstance(self.mask_fname, str) else None
         )
 
         # Apply hair removal
@@ -66,7 +66,7 @@ class Record:
         return self.features.get(name)
 
 class Dataset:
-    def __init__(self, feature_extractors: dict[str, callable], csv_path: str, data_dir: str, image_col: str = "image_path", mask_col: str = "mask_path", label_col: str = "label") -> None:
+    def __init__(self, feature_extractors: dict[str, callable], csv_path: str, data_dir: str, image_col: str = "image_path", mask_col: str = "image_mask_path", label_col: str = "label") -> None:
         """
             Dataset (parent class):
                 Args:
@@ -98,7 +98,7 @@ class Dataset:
         for filename, label, mask in zip(df[image_col], df[label_col], df[mask_col]):
             # Create a new Record instance using the filename, label, and mask
             rec = Record(self, filename, label, mask)
-            
+            print(f"[INFO] Loading {rec.filename}")
             # Load the image data and apply hair removal
             rec.load()
 
@@ -142,7 +142,10 @@ class Dataset:
 
         # If a mask path is provided, read the mask image in grayscale format
         # The read function returns None if the file does not exist
-        original_mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) # NEED TO CHECK IF THE ORIGINAL MASK IS VALID (NOT BLANK)
+        # But first check if the mask_path is a string (not None)
+        original_mask = None # Initialize original_mask to None to avoid uninitialized variable error while returning
+        if mask_path:
+            original_mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
 
         return img_rgb, img_gray, original_mask
 

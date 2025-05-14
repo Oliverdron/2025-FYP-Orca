@@ -7,7 +7,7 @@ from util import (
     regionprops
 )
 
-def asymmetry(record: 'Record', k_blobs: int = 3, n_angles: int = 16) -> float | np.nan:
+def asymmetry(record: 'Record', k_blobs: int = 3, n_angles: int = 16) -> float:
     """
         Compute the mean rotation-invariant asymmetry across the top-k blobs in the Record's mask.
 
@@ -75,9 +75,16 @@ def asymmetry(record: 'Record', k_blobs: int = 3, n_angles: int = 16) -> float |
 
             # np.where returns the indices of True rows/columns
             # np.where(rows/cols)[0] extracts the array of indices
+            row_idx = np.where(rows)[0]
+            col_idx = np.where(cols)[0]
+            
+            # If no rows or columns are found, skip this rotation
+            if row_idx.size == 0 or col_idx.size == 0:
+                continue
+
             # np.where(rows)[0][[0, -1]] gives the first (topmost\leftmost) and last (bottommost/rightmost) indices of the True values
-            rmin, rmax = np.where(rows)[0][[0, -1]]
-            cmin, cmax = np.where(cols)[0][[0, -1]]
+            rmin, rmax = row_idx[[0, -1]]
+            cmin, cmax = col_idx[[0, -1]]
 
             crop = rot[rmin:rmax+1, cmin:cmax+1] # Slice out the skin lesion area (+1 to include the last index)
 
