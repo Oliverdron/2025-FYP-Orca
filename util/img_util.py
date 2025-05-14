@@ -110,14 +110,14 @@ class Dataset:
             rec = Record(self, filename, label, mask)
             t1 = time.perf_counter()
             elapsed = t1 - t0
-            print(f"Record {filename!r} took {elapsed:.4f}s to initialize")
+            print(f"[INFO] Record {filename!r} took {elapsed:.4f}s to initialize")
             
             t0 = time.perf_counter()
             # Load the image data and apply hair removal
             rec.load()
             t1 = time.perf_counter()
             elapsed = t1 - t0
-            print(f"Record {filename!r} took {elapsed:.4f}s to load")
+            print(f"[INFO] Record {filename!r} took {elapsed:.4f}s to load")
 
             # Extract features using the provided feature extractors
             for feat_name, func in feature_extractors.items():
@@ -127,7 +127,7 @@ class Dataset:
                 t1 = time.perf_counter()
                 elapsed = t1 - t0
                 rec.set_feature(f"{feat_name}", value)
-                print(f"Feature {feat_name!r} took {elapsed:.4f}s, value={value}")
+                print(f"[INFO] Feature {feat_name!r} took {elapsed:.4f}s, value={value}")
             
             # Call the export_record method to save the Record instance's data to a CSV file
             self.export_record(rec, os.path.join(self.base_dir, "dataset.csv"))
@@ -201,4 +201,4 @@ class Dataset:
             print(f"[INFO] Appended {rec.filename} to {csv_path}")
         # Raise a warning if the writing operation fails
         except Exception as e:
-            print(f"[WARN] Could not append to {csv_path}: {e}")
+            print(f"[WARNING] Could not append to {csv_path}: {e}")

@@ -15,7 +15,7 @@ from util.feature_C      import color_heterogeneity as extract_feature_C
 from util.classifier     import classifier_model
 
 from util import (
-    Path, pd,
+    Path, pd, os,
     LogisticRegression,
     GradientBoostingClassifier,
     confusion_matrix,
@@ -46,13 +46,15 @@ def main():
     base = get_base_dir()
 
     # 2) Set up result output path
-    output_path = base / "result" / "result_baseline.csv"
+    output_path = base / "result" / "result.csv"
 
     # 4) Build Dataset so we can train/evaluate/test our model directly (this also calls Record.load() for each image)
-    ds = Dataset(FEATURE_MAP, base)
+    # This should only run if the dataset.csv file does not exist yet, as the dataset.csv file should contain the extracted feature values
+    if not os.path.exists(os.path.join(base, "dataset.csv")):
+        ds = Dataset(FEATURE_MAP, base)
 
     # 5) Pass the Dataset to the classifier model for training and evaluation
-    result = classifier_model(ds, list(FEATURE_MAP.keys()), CLASSIFIERS, test_size=0.3, random_state=42, output_path=output_path)
+    result = classifier_model(base, list(FEATURE_MAP.keys()), CLASSIFIERS, test_size=0.3, random_state=42, output_path=output_path)
 
     # 6) Represent test accuracy, write results to CSV and possibly display predictions on a plot
 

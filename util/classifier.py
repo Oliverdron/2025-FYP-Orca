@@ -8,12 +8,12 @@ from util import (
     accuracy_score
 )
 
-def classifier_model(dataset: 'Dataset', feature_names: list, classifiers: dict[str, BaseEstimator], test_size: float = 0.3, random_state: int = 42, output_path: str = None) -> dict[str, any]:
+def classifier_model(base_dir: str, feature_names: list, classifiers: dict[str, BaseEstimator], test_size: float = 0.3, random_state: int = 42, output_path: str = None) -> dict[str, any]:
     """
         Trains the given classifiers on extracted features, collects per-sample predictions & probabilities, and optionally saves a detailed results CSV
 
         Args:
-            dataset (Dataset): Dataset instance containing features and labels
+            base_dir (str): Base directory's absolute path
             feature_names (list): List of feature names used for feature extraction
             classifiers (dict): Dictionary mapping classifier names to initialized classifier objects
             test_size (float): Fraction of data to hold out for testing
@@ -27,7 +27,7 @@ def classifier_model(dataset: 'Dataset', feature_names: list, classifiers: dict[
             }
     """
     # Start with converting the Record instances to a DataFrame
-    df = dataset.records_to__dataframe()
+    df = pd.read_csv(os.path.join(base_dir, "dataset.csv"))
     
     # Then, need to filter out the features we want to use for training (should be the same as the extracted ones)
     X = df[feature_names]
@@ -77,8 +77,6 @@ def classifier_model(dataset: 'Dataset', feature_names: list, classifiers: dict[
 
     # Save the results if an output path is provided
     if output_path:
-        # Ensure the directory exists
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
         # Then save the DataFrame to a CSV file
         results.to_csv(output_path, index=False)
         print(f"Classifier model results saved to {output_path}")
