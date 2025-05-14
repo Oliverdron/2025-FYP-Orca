@@ -23,7 +23,7 @@ def classifier_model(dataset: 'Dataset', feature_names: list, classifiers: dict[
         Returns:
             dict: {
                 - "models": dict of trained estimators
-                - "results": DataFrame with filename, true_label, <model>_pred, <model>_proba_<class>, <model>_accuracy for each model, disagreement
+                - "results": DataFrame with filename, truth_label, <model>_pred, <model>_proba_<class>, <model>_accuracy for each model, disagreement
             }
     """
     # Start with converting the Record instances to a DataFrame
@@ -43,8 +43,8 @@ def classifier_model(dataset: 'Dataset', feature_names: list, classifiers: dict[
     results = pd.DataFrame(index=X_test.index)
     # Add the filename for easy identification
     results['filename'] = df.loc[X_test.index, 'filename']
-    # Add the true labels and the predicted labels from both models
-    results['true_label'] = Y_test.values
+    # Add the truth labels and the predicted labels from both models
+    results['truth_label'] = Y_test.values
 
     # Use a dictionary for easy access saving
     trained: dict[str, BaseEstimator] = {}
