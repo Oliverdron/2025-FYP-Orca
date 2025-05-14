@@ -11,7 +11,8 @@ import json
 import cv2
 import numpy as np
 from scipy.stats import circmean, circvar, circstd
-from scipy.spatial import ConvexHull, pdist
+from scipy.spatial import ConvexHull
+from scipy.spatial.distance import pdist
 
 # ── Scikit-image ───────────────────────────────────────────────────────────────
 from skimage import color, exposure, morphology
