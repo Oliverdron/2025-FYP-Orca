@@ -1,9 +1,10 @@
+from util.img_util import Record
+
 from util import (
     np,
     rotate,
     label,
-    regionprops,
-    Record
+    regionprops
 )
 
 def asymmetry(record: 'Record', k_blobs: int = 3, n_angles: int = 16) -> float | np.nan:

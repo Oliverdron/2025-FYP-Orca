@@ -1,9 +1,10 @@
+from util.inpaint_util   import removeHair
+
 from util import (
     pd,
     cv2,
     os,
     json,
-    removeHair
 )
 
 class Record:

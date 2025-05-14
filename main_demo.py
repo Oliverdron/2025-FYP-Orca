@@ -8,13 +8,14 @@
 #       Gradient Boosting: State-of-the-art on tabular data; Very high accuracy; Training can be slower
 # Evaluate the models
 
+from util.img_util       import Dataset, Record
+from util.feature_A      import asymmetry as extract_feature_A
+from util.feature_B      import border_irregularity as extract_feature_B
+from util.feature_C      import color_heterogeneity as extract_feature_C
+from util.classifier     import classifier_model
+
 from util import (
     sys, Path, pd,
-    Dataset,
-    extract_feature_A,
-    extract_feature_B,
-    extract_feature_C,
-    classifier_model,
     LogisticRegression,
     GradientBoostingClassifier,
     confusion_matrix,

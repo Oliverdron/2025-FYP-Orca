@@ -30,11 +30,3 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
-
-# ── Submodule exports ─────────────────────────────────────────────────────────
-from .img_util       import Dataset, Record
-from .inpaint_util   import removeHair
-from .feature_A      import asymmetry as extract_feature_A
-from .feature_B      import border_irregularity as extract_feature_B
-from .feature_C      import color_heterogeneity as extract_feature_C
-from .classifier     import classifier_model

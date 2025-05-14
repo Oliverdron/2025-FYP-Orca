@@ -1,9 +1,10 @@
+from util.img_util import Record
+
 from util import (
     np,
     ConvexHull,
     label,
-    regionprops,
-    Record
+    regionprops
 )
 
 def border_irregularity(record: 'Record', k_blobs: int = 3) -> float | np.nan:

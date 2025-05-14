@@ -1,10 +1,11 @@
+from util.img_util import Dataset
+
 from util import (
     os,
     pd,
     BaseEstimator,
     train_test_split,
-    accuracy_score,
-    Dataset
+    accuracy_score
 )
 
 def classifier_model(dataset: 'Dataset', feature_names: list, classifiers: dict[str, BaseEstimator], test_size: float = 0.3, random_state: int = 42, output_path: str = None) -> dict[str, any]:

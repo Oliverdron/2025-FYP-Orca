@@ -1,3 +1,4 @@
+from util.img_util import Record
 from util import (
     np,
     label,
@@ -5,8 +6,7 @@ from util import (
     resize,
     KMeans,
     rgb2lab,
-    pdist,
-    Record
+    pdist
 )
 
 def color_heterogeneity(record: 'Record', n_clusters: int = 4, downscale: float = 1.0, k_blobs: int = 3) -> float | np.nan:
