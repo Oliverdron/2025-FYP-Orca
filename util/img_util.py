@@ -1,4 +1,4 @@
-from util.inpaint_util   import removeHair
+from util.inpaint_util_demo   import removeHair
 import time
 from util import (
     pd,
@@ -47,6 +47,7 @@ class Record:
         self.blackhat = None
         self.thresh = None
         self.img_out = None
+        self.img_hair_label = None
         self.features = {}
 
     def load(self) -> None:
@@ -57,7 +58,7 @@ class Record:
         )
 
         # Apply hair removal
-        self.blackhat, self.thresh, self.img_out = removeHair(self.img_rgb, self.img_gray)
+        self.blackhat, self.thresh, self.img_out, self.img_hair_label = removeHair(self.img_rgb, self.img_gray)
 
     def set_feature(self, name: str, value) -> None:
         # Stores one feature value under self.features[name]
