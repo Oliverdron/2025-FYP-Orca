@@ -21,7 +21,8 @@ class Record:
             Attributes:
                 dataset (Dataset): The parent Dataset instance
                 filename (str): The name of the image file
-                label (boolean): The label of the image, True if cancerous, False if not
+                label_categorical (str): The categorical label of the image, one of ["BCC","ACK""MEL","SEK","NEV","SEC"]
+                label_binary (boolean): The binary label of the image, True if cancerous, False if not
                 img_rgb (ndarray): The image in RGB format
                 img_gray (ndarray): The image in grayscale format
                 mask_fname (str | None): The filename of the mask (if exists)
@@ -39,7 +40,8 @@ class Record:
     def __init__(self, dataset: 'Dataset', filename: str, label: str, mask_fname: str = None) -> None:
         self.dataset = dataset
         self.filename = filename
-        self.label = True if label in CANCEROUS else False 
+        self.label_categorical = label
+        self.label_binary = True if label in CANCEROUS else False 
         self.img_rgb = None
         self.img_gray = None
         self.mask_fname = mask_fname # Filename from CSV or None
@@ -93,7 +95,7 @@ class Dataset:
         if not csv_path.exists():
             sys.exit(f"Error: metadata.csv not found in {base_dir}")
         
-        # Load metadata and make sure the column containing the filenames exists
+        # Load metadata 
         df = pd.read_csv(csv_path)
 
         # Check if the required columns exist in the DataFrame
@@ -189,8 +191,9 @@ class Dataset:
         """
         # Create a map of attributes to be saved
         to_save = {
-            "filename":         rec.filename,
-            "label":            rec.label,
+            "filename":             rec.filename,
+            "label_binary":         rec.label_binary,
+            "label_categorical":    rec.label_categorical  
             **rec.features      # Unpacks the features dictionary into the metadata
         }
 

@@ -12,7 +12,7 @@ from util.img_util       import Dataset, Record
 from util.feature_A      import asymmetry as extract_feature_A
 from util.feature_B      import border_irregularity as extract_feature_B
 from util.feature_C      import color_heterogeneity as extract_feature_C
-from util.classifier     import classifier_model
+from util.classifier     import HierarchicalClassifier
 
 from util import (
     Path, pd, os,
@@ -26,14 +26,28 @@ FEATURE_MAP = {
     #"feat_A": extract_feature_A,
     "feat_B": extract_feature_B,
     "feat_C": extract_feature_C,
+    "feat_D": any
     # ALSO IMPORT EXTENDED FEATURES IN EXTENDED.py LATER!!!
 }
 
-CLASSIFIERS = {
+# Set classifiers according to discussion with the team
+CLASSIFIERS_LEVEL1 = {
     "lr": LogisticRegression(max_iter = 1000, random_state = 42, verbose = 0),
     "gb": GradientBoostingClassifier(random_state = 42, verbose = 0)
-    # Set classifiers according to discussion with the team
+
 }
+CLASSIFIERS_LEVEL2_CANCER = {
+    "lr": LogisticRegression(max_iter = 1000, random_state = 42, verbose = 0),
+    "gb": GradientBoostingClassifier(random_state = 42, verbose = 0)
+
+}
+CLASSIFIERS_LEVEL2_NON_CANCER = {
+    "lr": LogisticRegression(max_iter = 1000, random_state = 42, verbose = 0),
+    "gb": GradientBoostingClassifier(random_state = 42, verbose = 0)
+
+}
+
+
 
 def get_base_dir() -> Path:
     """
@@ -46,7 +60,7 @@ def main():
     base = get_base_dir()
 
     # 2) Set up result output path
-    output_path = base / "result" / "result.csv"
+    output_path = base / "result" 
 
     # 4) Build Dataset so we can train/evaluate/test our model directly (this also calls Record.load() for each image)
     # This should only run if the dataset.csv file does not exist yet, as the dataset.csv file should contain the extracted feature values
@@ -54,7 +68,15 @@ def main():
         ds = Dataset(FEATURE_MAP, base)
 
     # 5) Pass the Dataset to the classifier model for training and evaluation
-    result = classifier_model(base, list(FEATURE_MAP.keys()), CLASSIFIERS, test_size=0.3, random_state=42, output_path=output_path)
+    print("Training classifier...")
+    hierarchicalClassifier = HierarchicalClassifier(base, 
+                                                    list(FEATURE_MAP.keys()),
+                                                    CLASSIFIERS_LEVEL1,
+                                                    CLASSIFIERS_LEVEL2_CANCER,
+                                                    CLASSIFIERS_LEVEL2_NON_CANCER,
+                                                    test_size=0.3,
+                                                    random_state=42, 
+                                                    output_path=output_path)
 
     # 6) Represent test accuracy, write results to CSV and possibly display predictions on a plot
 
