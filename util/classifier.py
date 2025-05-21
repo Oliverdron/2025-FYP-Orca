@@ -50,8 +50,9 @@ class HierarchicalClassifier:
             _load_dataset(): Loads the dataset from the specified base directory.
             _split_data(): Splits the dataset into training and testing sets using the specified parameters.
             _evaluate_model(model, X_test, Y_test, model_name): Evaluates the model on the test set and returns a DataFrame with predictions and accuracy.
-            _train_level1(): Trains the Level 1 classifier on the binary labels.
-            _train_level2(group): Trains the Level 2 classifier on the non-cancer or cancer labels.
+            _train_and_evaluate_classifiers(classifiers, X_train, Y_train, X_test, Y_test, group_name): Trains classifiers and evaluates them.
+            _level1(): Trains and evaluates the Level 1 classifier on the binary labels.
+            _level2(group): Trains and evaluates the Level 2 classifier on the non-cancer or cancer labels.
             _run(): Runs the training and evaluation process on both levels.
             _save_results(): Saves the results to a CSV file if an output path is provided.
     """
@@ -192,9 +193,9 @@ class HierarchicalClassifier:
 
         return trained_models, combined_results_df
     
-    def _train_level1(self) -> pd.DataFrame:
+    def _level1(self) -> pd.DataFrame:
         """
-            Trains the Level 1 classifier on the binary labels.
+            Trains and evaluates the Level 1 classifier on the binary labels.
             The trained models are stored in self.trained_models["level1"].
             The predictions and accuracy are stored in results
         """
@@ -216,9 +217,9 @@ class HierarchicalClassifier:
         # Return the results
         return results_df
     
-    def _train_level2(self, group: str) -> pd.DataFrame:
+    def _level2(self, group: str) -> pd.DataFrame:
         """
-            Trains the Level 2 classifier on the categorical labels 
+            Trains and evaluates the Level 2 classifier on the categorical labels 
             The trained models are stored in self.trained_models["level2_cancer/non_cancer"].
             The predictions and accuracy are stored in results
         """
@@ -266,11 +267,11 @@ class HierarchicalClassifier:
         combined_results = {}
         
         # First, we train the Level 1 classifier, so only for binary label
-        combined_results["level1"] =  self._train_level1()
+        combined_results["level1"] =  self._level1()
 
         # Then, we train the Level 2 classifier for both cancer and non-cancer labels
-        combined_results["level2_cancer"] = self._train_level2("cancer")
-        combined_results["level2_non_cancer"] = self._train_level2("non_cancer")
+        combined_results["level2_cancer"] = self._level2("cancer")
+        combined_results["level2_non_cancer"] = self._level2("non_cancer")
     
         return combined_results
 
