@@ -1,0 +1,224 @@
+{
+    "timestamp": "2025-05-22T03:41:36.934280",
+    "dataset_stats": {
+        "num_samples": 2298,
+        "num_features": 2,
+        "training_samples": 1608,
+        "testing_samples": 690
+    },
+    "base_dir": "/Users/anisk/University/Projects in data science 2025/Final Project/2025-FYP-Orca",
+    "feature_names": [
+        "feat_B",
+        "feat_C"
+    ],
+    "test_size": 0.3,
+    "random_state": 42,
+    "classification_reports": {
+        "level1_mlp": {
+            "False": {
+                "precision": 0.5700197238658777,
+                "recall": 0.7961432506887053,
+                "f1-score": 0.664367816091954,
+                "support": 363.0
+            },
+            "True": {
+                "precision": 0.5956284153005464,
+                "recall": 0.3333333333333333,
+                "f1-score": 0.42745098039215684,
+                "support": 327.0
+            },
+            "accuracy": 0.5768115942028985,
+            "macro avg": {
+                "precision": 0.5828240695832121,
+                "recall": 0.5647382920110193,
+                "f1-score": 0.5459093982420554,
+                "support": 690.0
+            },
+            "weighted avg": {
+                "precision": 0.5821560167631773,
+                "recall": 0.5768115942028985,
+                "f1-score": 0.5520898374342241,
+                "support": 690.0
+            }
+        },
+        "level2_cancer_mlp": {
+            "BCC": {
+                "precision": 0.7648902821316614,
+                "recall": 0.976,
+                "f1-score": 0.8576449912126538,
+                "support": 250.0
+            },
+            "MEL": {
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1-score": 0.0,
+                "support": 18.0
+            },
+            "SCC": {
+                "precision": 0.25,
+                "recall": 0.03389830508474576,
+                "f1-score": 0.05970149253731343,
+                "support": 59.0
+            },
+            "accuracy": 0.7522935779816514,
+            "macro avg": {
+                "precision": 0.3382967607105538,
+                "recall": 0.3366327683615819,
+                "f1-score": 0.3057821612499891,
+                "support": 327.0
+            },
+            "weighted avg": {
+                "precision": 0.6298855367979064,
+                "recall": 0.7522935779816514,
+                "f1-score": 0.666463718235061,
+                "support": 327.0
+            }
+        },
+        "level2_non_cancer_mlp": {
+            "ACK": {
+                "precision": 0.5819209039548022,
+                "recall": 0.9951690821256038,
+                "f1-score": 0.7344028520499108,
+                "support": 207.0
+            },
+            "NEV": {
+                "precision": 0.5,
+                "recall": 0.047619047619047616,
+                "f1-score": 0.08695652173913043,
+                "support": 84.0
+            },
+            "SEK": {
+                "precision": 1.0,
+                "recall": 0.013888888888888888,
+                "f1-score": 0.0273972602739726,
+                "support": 72.0
+            },
+            "accuracy": 0.581267217630854,
+            "macro avg": {
+                "precision": 0.6939736346516008,
+                "recall": 0.3522256728778468,
+                "f1-score": 0.2829188780210046,
+                "support": 363.0
+            },
+            "weighted avg": {
+                "precision": 0.6458887799411681,
+                "recall": 0.581267217630854,
+                "f1-score": 0.4443480466670648,
+                "support": 363.0
+            }
+        }
+    },
+    "classifiers_level1": {
+        "mlp": {
+            "get_params": {
+                "activation": "relu",
+                "alpha": 0.0001,
+                "batch_size": "auto",
+                "beta_1": 0.9,
+                "beta_2": 0.999,
+                "early_stopping": false,
+                "epsilon": 1e-08,
+                "hidden_layer_sizes": [
+                    100,
+                    50
+                ],
+                "learning_rate": "constant",
+                "learning_rate_init": 0.001,
+                "max_fun": 15000,
+                "max_iter": 1000,
+                "momentum": 0.9,
+                "n_iter_no_change": 10,
+                "nesterovs_momentum": true,
+                "power_t": 0.5,
+                "random_state": 42,
+                "shuffle": true,
+                "solver": "adam",
+                "tol": 0.0001,
+                "validation_fraction": 0.1,
+                "verbose": 0,
+                "warm_start": false
+            },
+            "n_features_in_": 2,
+            "classes_": [
+                false,
+                true
+            ]
+        }
+    },
+    "classifiers_level_level2_cancer": {
+        "mlp": {
+            "get_params": {
+                "activation": "relu",
+                "alpha": 0.0001,
+                "batch_size": "auto",
+                "beta_1": 0.9,
+                "beta_2": 0.999,
+                "early_stopping": false,
+                "epsilon": 1e-08,
+                "hidden_layer_sizes": [
+                    100,
+                    50
+                ],
+                "learning_rate": "constant",
+                "learning_rate_init": 0.001,
+                "max_fun": 15000,
+                "max_iter": 1000,
+                "momentum": 0.9,
+                "n_iter_no_change": 10,
+                "nesterovs_momentum": true,
+                "power_t": 0.5,
+                "random_state": 42,
+                "shuffle": true,
+                "solver": "adam",
+                "tol": 0.0001,
+                "validation_fraction": 0.1,
+                "verbose": 0,
+                "warm_start": false
+            },
+            "n_features_in_": 2,
+            "classes_": [
+                "BCC",
+                "MEL",
+                "SCC"
+            ]
+        }
+    },
+    "classifiers_level_level2_non_cancer": {
+        "mlp": {
+            "get_params": {
+                "activation": "relu",
+                "alpha": 0.0001,
+                "batch_size": "auto",
+                "beta_1": 0.9,
+                "beta_2": 0.999,
+                "early_stopping": false,
+                "epsilon": 1e-08,
+                "hidden_layer_sizes": [
+                    100,
+                    50
+                ],
+                "learning_rate": "constant",
+                "learning_rate_init": 0.001,
+                "max_fun": 15000,
+                "max_iter": 1000,
+                "momentum": 0.9,
+                "n_iter_no_change": 10,
+                "nesterovs_momentum": true,
+                "power_t": 0.5,
+                "random_state": 42,
+                "shuffle": true,
+                "solver": "adam",
+                "tol": 0.0001,
+                "validation_fraction": 0.1,
+                "verbose": 0,
+                "warm_start": false
+            },
+            "n_features_in_": 2,
+            "classes_": [
+                "ACK",
+                "NEV",
+                "SEK"
+            ]
+        }
+    }
+}

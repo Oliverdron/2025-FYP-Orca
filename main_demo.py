@@ -7,43 +7,61 @@
 #       Random Forest: Captures non-linear interactions; Handles outliers, gives feature importances; Can overfit on noisy features
 #       Gradient Boosting: State-of-the-art on tabular data; Very high accuracy; Training can be slower
 # Evaluate the models
-
 from util.img_util       import Dataset, Record
 from util.feature_A      import asymmetry as extract_feature_A
 from util.feature_B      import border_irregularity as extract_feature_B
 from util.feature_C      import color_heterogeneity as extract_feature_C
 from util.classifier     import HierarchicalClassifier
 
+
+# For some reason i cant seem to import from util module, can someone check this?
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.neural_network import MLPClassifier
+from sklearn.feature_selection import RFE
+from matplotlib import pyplot as plt
+
 from util import (
     Path, pd, os,
     LogisticRegression,
     GradientBoostingClassifier,
-    confusion_matrix,
-    classification_report
 )
 
 FEATURE_MAP = {
     #"feat_A": extract_feature_A,
     "feat_B": extract_feature_B,
     "feat_C": extract_feature_C,
-    "feat_D": any
+    #"feat_D": any
     # ALSO IMPORT EXTENDED FEATURES IN EXTENDED.py LATER!!!
 }
 
 # Set classifiers according to discussion with the team
 CLASSIFIERS_LEVEL1 = {
-    "lr": LogisticRegression(max_iter = 1000, random_state = 42, verbose = 0),
-    "gb": GradientBoostingClassifier(random_state = 42, verbose = 0)
+    #"lr": LogisticRegression(max_iter = 1000, random_state = 42, verbose = 0),
+    #"gb": GradientBoostingClassifier(random_state = 42, verbose = 0),
+    #"rf": RandomForestClassifier(random_state = 42, verbose = 0),
+    #"knn": KNeighborsClassifier(n_neighbors=5, n_jobs=-1),
+    #"svc": SVC(kernel='linear', random_state=42, verbose=0),
+    "mlp": MLPClassifier(random_state=42, verbose=0, max_iter=1000, hidden_layer_sizes=(100,50)),
 
 }
 CLASSIFIERS_LEVEL2_CANCER = {
-    "lr": LogisticRegression(max_iter = 1000, random_state = 42, verbose = 0),
-    "gb": GradientBoostingClassifier(random_state = 42, verbose = 0)
+    #"lr": LogisticRegression(max_iter = 1000, random_state = 42, verbose = 0),
+    #"gb": GradientBoostingClassifier(random_state = 42, verbose = 0),
+    #"rf": RandomForestClassifier(random_state = 42, verbose = 0),
+    #"knn": KNeighborsClassifier(n_neighbors=5, n_jobs=-1),
+    #"svc": SVC(kernel='linear', random_state=42, verbose=0),
+    "mlp": MLPClassifier(random_state=42, verbose=0, max_iter=1000, hidden_layer_sizes=(100,50)),
 
 }
 CLASSIFIERS_LEVEL2_NON_CANCER = {
-    "lr": LogisticRegression(max_iter = 1000, random_state = 42, verbose = 0),
-    "gb": GradientBoostingClassifier(random_state = 42, verbose = 0)
+    #"lr": LogisticRegression(max_iter = 1000, random_state = 42, verbose = 0),
+    #"gb": GradientBoostingClassifier(random_state = 42, verbose = 0),
+    #"rf": RandomForestClassifier(random_state = 42, verbose = 0),
+    #"knn": KNeighborsClassifier(n_neighbors=5, n_jobs=-1),
+    #"svc": SVC(kernel='linear', random_state=42, verbose=0),
+     "mlp": MLPClassifier(random_state=42, verbose=0, max_iter=1000, hidden_layer_sizes=(100,50)),
 
 }
 
@@ -78,13 +96,33 @@ def main():
                                                     random_state=42, 
                                                     output_path=output_path)
 
-    # 6) Represent test accuracy, write results to CSV and possibly display predictions on a plot
+    hierarchicalClassifier.run()
+    hierarchicalClassifier.save_config()
+    
+    param_grid = {
+    'C': [0.01, 0.1, 1, 10, 100],  # Regularization strength for Logistic Regression
+    'solver': ['liblinear', 'saga'],  # Solvers to use in Logistic Regression
+    'max_iter': [100, 200, 300]  # Max iterations for optimization
+    }
+    #hierarchicalClassifier.tune_hyperparameters("level1", "lr", param_grid)   
+    
+        # Save the best model
+     
 
 
-    # acc = accuracy_score(y_test, y_pred)
-    # cm = confusion_matrix(y_test, y_pred)
-    # print("Test Accuracy:", acc)
-    # print("Confusion Matrix:\n", cm)
+
+
+    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    model.fit(hierarchicalClassifier.X, hierarchicalClassifier.Y_binary)
+    importances = pd.Series(model.feature_importances_, index=hierarchicalClassifier.X.columns)
+    importances = importances.sort_values(ascending=False)
+
+    # Plot feature importances
+    importances[:2].plot(kind='barh')
+    plt.gca().invert_yaxis()
+    plt.title(f"Top {2} Features by Random Forest Importance")
+    plt.show()
+
 
 if __name__ == "__main__":
     main()

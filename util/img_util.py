@@ -1,10 +1,10 @@
-from util.inpaint_util_demo   import removeHair
-import time
+from util.inpaint_util_demo import removeHair
 from util import (
     pd,
     cv2,
     os,
-    sys
+    sys,
+    time,
 )
 
 CANCEROUS = ("BCC","MEL","SCC")
@@ -129,6 +129,10 @@ class Dataset:
                 value = func(rec)
                 t1 = time.perf_counter()
                 elapsed = t1 - t0
+                # Scale the feature values using StandardScaler
+                # Still have to test if this works as intended, but feature values should be standardized
+                #scaler = StandardScaler()
+                #value = scaler.fit_transform(value.reshape(-1, 1)).flatten()
                 rec.set_feature(f"{feat_name}", value)
                 print(f"[INFO] Feature {feat_name!r} took {elapsed:.4f}s, value={value}")
             
