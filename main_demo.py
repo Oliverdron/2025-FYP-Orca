@@ -17,7 +17,7 @@ from util import (
 )
 
 FEATURE_MAP = {
-    #"feat_A": extract_feature_A,
+    "feat_A": extract_feature_A,
     "feat_B": extract_feature_B,
     "feat_C": extract_feature_C,
     #"feat_D": any

@@ -1,13 +1,14 @@
 {
-    "timestamp": "2025-05-22T03:41:36.934280",
+    "timestamp": "2025-05-22T16:41:26.685179",
     "dataset_stats": {
-        "num_samples": 2298,
-        "num_features": 2,
-        "training_samples": 1608,
-        "testing_samples": 690
+        "num_samples": 90,
+        "num_features": 3,
+        "training_samples": 63,
+        "testing_samples": 27
     },
-    "base_dir": "/Users/anisk/University/Projects in data science 2025/Final Project/2025-FYP-Orca",
+    "base_dir": "C:\\Users\\onadi\\Desktop\\2025-FYP-Orca",
     "feature_names": [
+        "feat_A",
         "feat_B",
         "feat_C"
     ],
@@ -16,95 +17,95 @@
     "classification_reports": {
         "level1_mlp": {
             "False": {
-                "precision": 0.5700197238658777,
-                "recall": 0.7961432506887053,
-                "f1-score": 0.664367816091954,
-                "support": 363.0
+                "precision": 0.5882352941176471,
+                "recall": 0.6666666666666666,
+                "f1-score": 0.625,
+                "support": 15.0
             },
             "True": {
-                "precision": 0.5956284153005464,
-                "recall": 0.3333333333333333,
-                "f1-score": 0.42745098039215684,
-                "support": 327.0
+                "precision": 0.5,
+                "recall": 0.4166666666666667,
+                "f1-score": 0.45454545454545453,
+                "support": 12.0
             },
-            "accuracy": 0.5768115942028985,
+            "accuracy": 0.5555555555555556,
             "macro avg": {
-                "precision": 0.5828240695832121,
-                "recall": 0.5647382920110193,
-                "f1-score": 0.5459093982420554,
-                "support": 690.0
+                "precision": 0.5441176470588236,
+                "recall": 0.5416666666666666,
+                "f1-score": 0.5397727272727273,
+                "support": 27.0
             },
             "weighted avg": {
-                "precision": 0.5821560167631773,
-                "recall": 0.5768115942028985,
-                "f1-score": 0.5520898374342241,
-                "support": 690.0
+                "precision": 0.5490196078431373,
+                "recall": 0.5555555555555556,
+                "f1-score": 0.5492424242424242,
+                "support": 27.0
             }
         },
         "level2_cancer_mlp": {
             "BCC": {
-                "precision": 0.7648902821316614,
-                "recall": 0.976,
-                "f1-score": 0.8576449912126538,
-                "support": 250.0
+                "precision": 0.9090909090909091,
+                "recall": 1.0,
+                "f1-score": 0.9523809523809523,
+                "support": 10.0
             },
             "MEL": {
                 "precision": 0.0,
                 "recall": 0.0,
                 "f1-score": 0.0,
-                "support": 18.0
+                "support": 1.0
             },
             "SCC": {
-                "precision": 0.25,
-                "recall": 0.03389830508474576,
-                "f1-score": 0.05970149253731343,
-                "support": 59.0
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1-score": 0.0,
+                "support": 1.0
             },
-            "accuracy": 0.7522935779816514,
+            "accuracy": 0.8333333333333334,
             "macro avg": {
-                "precision": 0.3382967607105538,
-                "recall": 0.3366327683615819,
-                "f1-score": 0.3057821612499891,
-                "support": 327.0
+                "precision": 0.30303030303030304,
+                "recall": 0.3333333333333333,
+                "f1-score": 0.31746031746031744,
+                "support": 12.0
             },
             "weighted avg": {
-                "precision": 0.6298855367979064,
-                "recall": 0.7522935779816514,
-                "f1-score": 0.666463718235061,
-                "support": 327.0
+                "precision": 0.7575757575757575,
+                "recall": 0.8333333333333334,
+                "f1-score": 0.7936507936507936,
+                "support": 12.0
             }
         },
         "level2_non_cancer_mlp": {
             "ACK": {
-                "precision": 0.5819209039548022,
-                "recall": 0.9951690821256038,
-                "f1-score": 0.7344028520499108,
-                "support": 207.0
+                "precision": 0.7272727272727273,
+                "recall": 0.8888888888888888,
+                "f1-score": 0.8,
+                "support": 9.0
             },
             "NEV": {
-                "precision": 0.5,
-                "recall": 0.047619047619047616,
-                "f1-score": 0.08695652173913043,
-                "support": 84.0
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1-score": 0.0,
+                "support": 3.0
             },
             "SEK": {
-                "precision": 1.0,
-                "recall": 0.013888888888888888,
-                "f1-score": 0.0273972602739726,
-                "support": 72.0
+                "precision": 0.75,
+                "recall": 1.0,
+                "f1-score": 0.8571428571428571,
+                "support": 3.0
             },
-            "accuracy": 0.581267217630854,
+            "accuracy": 0.7333333333333333,
             "macro avg": {
-                "precision": 0.6939736346516008,
-                "recall": 0.3522256728778468,
-                "f1-score": 0.2829188780210046,
-                "support": 363.0
+                "precision": 0.49242424242424243,
+                "recall": 0.6296296296296297,
+                "f1-score": 0.5523809523809523,
+                "support": 15.0
             },
             "weighted avg": {
-                "precision": 0.6458887799411681,
-                "recall": 0.581267217630854,
-                "f1-score": 0.4443480466670648,
-                "support": 363.0
+                "precision": 0.5863636363636364,
+                "recall": 0.7333333333333333,
+                "f1-score": 0.6514285714285715,
+                "support": 15.0
             }
         }
     },
@@ -138,7 +139,7 @@
                 "verbose": 0,
                 "warm_start": false
             },
-            "n_features_in_": 2,
+            "n_features_in_": 3,
             "classes_": [
                 false,
                 true
@@ -175,7 +176,7 @@
                 "verbose": 0,
                 "warm_start": false
             },
-            "n_features_in_": 2,
+            "n_features_in_": 3,
             "classes_": [
                 "BCC",
                 "MEL",
@@ -213,7 +214,7 @@
                 "verbose": 0,
                 "warm_start": false
             },
-            "n_features_in_": 2,
+            "n_features_in_": 3,
             "classes_": [
                 "ACK",
                 "NEV",

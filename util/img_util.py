@@ -1,4 +1,4 @@
-from util.inpaint_util_demo import removeHair
+from util.inpaint_util import removeHair
 from util import (
     pd,
     cv2,
@@ -65,6 +65,7 @@ class Record:
 
     def set_feature(self, name: str, value) -> None:
         # Stores one feature value under self.features[name]
+        print(f"[INFO] - img_util.py - LINE 68 - Setting feature {name!r} to {value}")
         self.features[name] = value
 
     def get_feature(self, name: str) -> float | None:
@@ -198,7 +199,7 @@ class Dataset:
         to_save = {
             "filename":             rec.filename,
             "label_binary":         rec.label_binary,
-            "label_categorical":    rec.label_categorical  
+            "label_categorical":    rec.label_categorical,
             **rec.features      # Unpacks the features dictionary into the metadata
         }
 

@@ -1,6 +1,6 @@
-import cv2
-import numpy as np
-
+from util import (
+    cv2, np
+)
 
 def removeHair(img_org, img_gray, kernel_size=25, threshold=14, radius=3):
     """

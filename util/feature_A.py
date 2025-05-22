@@ -49,7 +49,7 @@ def asymmetry(record: 'Record', k_blobs: int = 3, n_angles: int = 8) -> float:
     blob_scores = []
 
     # Precompute evenly spaced angles
-    angles = np.linspace(0, 90, n_angles, endpoint=False)
+    angles = np.linspace(0, 180, n_angles, endpoint=False)
 
     # Iterate through each blob one-by-one
     for prop in props:
