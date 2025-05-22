@@ -52,6 +52,6 @@ See Appendix for all heatmaps and rating distributions.
 Discussion
 We learned useful information about how subjective manual annotations can be:
 - Annotating hair amount resulted in different opinions many times. As the rating scale is not concrete and upto interpretation annotators interpret it differently. 
-- Disagreements were most common between adjacent categories which also strenhens our last claim.
+- Disagreements were most common between adjacent categories which also strengthens our last claim.
 - Some groups had stronger inter-rater consistency, potentially because of better communication, more awareness. Even though, we also have to take into consideration the number of raters and the number of images rated by each group.
-- Alternatives: Expert annotatiors or automated
+- Alternatives: Expert annotators or automated

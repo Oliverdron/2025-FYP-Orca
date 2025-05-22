@@ -30,6 +30,7 @@ class Record:
                 blackhat (ndarray): The image after applying blackhat filtering
                 thresh (ndarray): The thresholded mask of the image
                 img_out (ndarray): The inpainted image
+                img_hair_label (int): The label indicating the amount of hair in the image
                 features (dict): A dictionary to store features extracted from the image
 
             Methods:
@@ -93,7 +94,7 @@ class Dataset:
 
         csv_path = base_dir / "metadata.csv"
         if not csv_path.exists():
-            sys.exit(f"Error: metadata.csv not found in {base_dir}")
+            sys.exit(f"[ERROR] - img_util.py - LINE 97 - metadata.csv not found in {base_dir}")
         
         # Load metadata 
         df = pd.read_csv(csv_path)
@@ -101,26 +102,26 @@ class Dataset:
         # Check if the required columns exist in the DataFrame
         missing = [c for c in (image_col, label_col, mask_col) if c not in df.columns]
         if missing:
-            raise KeyError(f"Missing required column(s): {missing}")
+            raise KeyError(f"[ERROR] - img_util.py - LINE 105 - Missing required column(s): {missing}")
         
         # Load each Record
         self.records = []
         for filename, label, mask in zip(df[image_col], df[label_col], df[mask_col]):
-            print(f"[INFO] Current number of images: {len(self.records)}")
+            print(f"[INFO] - img_util.py - LINE 110 - Current number of images: {len(self.records)}")
 
             # Create a new Record instance using the filename, label, and mask
             t0 = time.perf_counter()
             rec = Record(self, filename, label, mask)
             t1 = time.perf_counter()
             elapsed = t1 - t0
-            print(f"[INFO] Record {filename!r} took {elapsed:.4f}s to initialize")
+            print(f"[INFO] - img_util.py - LINE 117 - Record {filename!r} took {elapsed:.4f}s to initialize")
             
-            t0 = time.perf_counter()
             # Load the image data and apply hair removal
+            t0 = time.perf_counter()
             rec.load()
             t1 = time.perf_counter()
             elapsed = t1 - t0
-            print(f"[INFO] Record {filename!r} took {elapsed:.4f}s to load")
+            print(f"[INFO] - img_util.py - LINE 124 - Record {filename!r} took {elapsed:.4f}s to load")
 
             # Extract features using the provided feature extractors
             for feat_name, func in feature_extractors.items():
@@ -134,7 +135,7 @@ class Dataset:
                 #scaler = StandardScaler()
                 #value = scaler.fit_transform(value.reshape(-1, 1)).flatten()
                 rec.set_feature(f"{feat_name}", value)
-                print(f"[INFO] Feature {feat_name!r} took {elapsed:.4f}s, value={value}")
+                print(f"[INFO] - img_util.py - LINE 138 - Feature {feat_name!r} took {elapsed:.4f}s, value={value}")
             
             # Call the export_record method to save the Record instance's data to a CSV file
             self.export_record(rec, os.path.join(self.base_dir, "dataset.csv"))
@@ -179,7 +180,7 @@ class Dataset:
         if mask_path:
             original_mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
 
-        print(f"[INFO] Loaded image {file_path} with shape {img_rgb.shape} and mask {mask_path} with shape {original_mask.shape if original_mask is not None else None}")
+        print(f"[INFO] - img_util.py - LINE 183 - Loaded image {file_path} with shape {img_rgb.shape} | mask {mask_path} with shape {original_mask.shape if original_mask is not None else None}")
 
         return img_rgb, img_gray, original_mask
 
@@ -206,7 +207,7 @@ class Dataset:
             write_header = not os.path.exists(csv_path) or os.path.getsize(csv_path) == 0
             # Convert the dictionary to a DataFrame and save it to the CSV file
             pd.DataFrame([to_save]).to_csv(csv_path, mode='a', header=write_header, index=False)
-            print(f"[INFO] Appended {rec.filename} to {csv_path}")
+            print(f"[INFO] - img_util.py - LINE 210 - Appended {rec.filename} to {csv_path}")
         # Raise a warning if the writing operation fails
         except Exception as e:
-            print(f"[WARNING] Could not append to {csv_path}: {e}")
+            print(f"[WARNING] - img_util.py - LINE 213 - Could not append to {csv_path}: {e}")

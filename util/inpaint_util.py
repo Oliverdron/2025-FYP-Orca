@@ -47,5 +47,4 @@ def removeHair(img_org, img_gray, kernel_size=25, threshold=14, radius=3):
     else:
         label = 2
 
-
     return blackhat, thresh, img_out, label

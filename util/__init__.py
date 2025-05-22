@@ -11,10 +11,10 @@ from math import sqrt, floor, ceil, nan, pi
 from statistics import variance, stdev
 from datetime import datetime
 
-
 # ── Numerical & image processing ────────────────────────────────────────────
 import cv2
 import numpy as np
+from matplotlib import pyplot as plt
 from scipy.stats import circmean, circvar, circstd
 from scipy.spatial import ConvexHull
 from scipy.spatial.distance import pdist
@@ -33,7 +33,11 @@ import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.base import BaseEstimator
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.neural_network import MLPClassifier
+from sklearn.feature_selection import RFE
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler

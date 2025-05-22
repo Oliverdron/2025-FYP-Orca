@@ -1,8 +1,3 @@
-from util.img_util import Dataset
-
-# Cant import from util can someone check this aswell?
-from sklearn.preprocessing import StandardScaler
-
 from util import (
     datetime,
     json,
@@ -13,6 +8,7 @@ from util import (
     GridSearchCV,
     RandomizedSearchCV,
     train_test_split,
+    StandardScaler,
     accuracy_score,
     classification_report
 )
@@ -20,8 +16,8 @@ from util import (
 class HierarchicalClassifier:
     """ 
         HierarchicalClassifier is a class that implements a two-level hierarchical classification system.
-        The first level classifies samples into binary labels (cancer or non-cancer), and the second level
-        classifies samples into specific cancer types or non-cancer types based on the first level's predictions.
+            - The first level classifies samples into binary labels (cancer or non-cancer)
+            - The second level classifies samples into specific cancer types or non-cancer types based on the first level's predictions
         
         Args:
             base_dir (str): Base directory's absolute path
@@ -32,6 +28,7 @@ class HierarchicalClassifier:
             test_size (float): Fraction of data to hold out for testing
             random_state (int): Random seed for reproducibility
             output_path (str): If provided, save the results CSV here
+
         Attributes:
             base_dir (str): Base directory's absolute path
             feature_names (list): List containing feature extractor names (Eg. "feat_A", "feat_B"...)
@@ -53,6 +50,7 @@ class HierarchicalClassifier:
             Y_train_binary (pd.Series): Series containing the training binary labels
             Y_test_categorical (pd.Series): Series containing the test categorical labels
             Y_train_categorical (pd.Series): Series containing the training categorical labels
+
         Methods:
             Methods are not called outside of the class, so making them private
             _load_dataset(): Loads the dataset from the specified base directory.
@@ -61,18 +59,17 @@ class HierarchicalClassifier:
             _train_and_evaluate_classifiers(classifiers, X_train, Y_train, X_test, Y_test, group_name): Trains classifiers and evaluates them.
             _level1(): Trains and evaluates the Level 1 classifier on the binary labels.
             _level2(group): Trains and evaluates the Level 2 classifier on the non-cancer or cancer labels.
-            _run(): Runs the training and evaluation process on both levels. 
-            run(): Runs the classifier. This method is called outside of the class.
+            _run(): Runs the training and evaluation process on both levels.
             _save_results(): Saves the results to a CSV file if an output path is provided.
             save_config() : Saves the configuration to a JSON file if an output path is provided.
             tune_hyperparameters(level, model_name, param_grid): Hyperparameter tuning for a specific model using GridSearchCV.
             
     """
     def __init__(
-        self, 
+        self,
         base_dir: str,
-        feature_names: list,              
-        classifiers_level1: dict[str, BaseEstimator], 
+        feature_names: list,
+        classifiers_level1: dict[str, BaseEstimator],
         classifiers_level2_cancer: dict[str, BaseEstimator],
         classifiers_level2_non_cancer: dict[str, BaseEstimator],
         test_size: float = 0.3,
@@ -96,18 +93,26 @@ class HierarchicalClassifier:
         
         # Split the dataset into training and testing sets
         self._split_data()
-        
-        
+
+        # Run the training and evaluation process on both levels
+        self.results = self._run()
+
+        # Save the results to a CSV file if an output path is provided
+        self._save_results()
+
+        # Save the classifier configuration, parameters and dataset stats to a JSON file
+        self.save_config()
+
     def _load_dataset(self) -> None:
         """
             Loads the dataset from the specified base directory and extracts features.
             The features are stored in self.X, and the labels in self.Y_binary and self.Y_categorical.
         """
-        # Load the dataset
+        # Load the dataset, which stores pre-calculated features and labels
         self.df = pd.read_csv(os.path.join(self.base_dir, "dataset.csv"))
         # Extract features and labels
-        self.X = self.df[self.feature_names] 
-        self.Y_binary = self.df['label_binary'] 
+        self.X = self.df[self.feature_names]
+        self.Y_binary = self.df['label_binary']
         self.Y_categorical = self.df['label_categorical']
         
     def _split_data(self) -> None:
@@ -121,12 +126,14 @@ class HierarchicalClassifier:
             self.X, self.Y_binary, self.Y_categorical,
             test_size=self.test_size,
             random_state=self.random_state,
-            stratify=self.Y_binary
+            stratify = list(zip(self.Y_binary, self.Y_categorical)) # Stratify by both binary and categorical labels to ensure that both distributions are representative
         )
-        
-        # Standardize the features using StandardScaler, maybe this should be in feature extraction?
+        # Standardize the features using StandardScaler
         scaler = StandardScaler()
+        # .fit_transform() method computes the mean and standard deviation of the training data and scales it
         self.X_train = pd.DataFrame(scaler.fit_transform(self.X_train), columns=self.X_train.columns, index=self.X_train.index)
+        # the .transform() method is applied to the testing data using the mean and standard deviation computed from the training data earlier
+        # This ensures that the testing data is scaled in the same way as the training data
         self.X_test = pd.DataFrame(scaler.transform(self.X_test), columns=self.X_test.columns, index=self.X_test.index)
         
     def _evaluate_model(self, model, X_test, Y_test, model_name: str, group_name: str) -> pd.DataFrame:
@@ -134,7 +141,6 @@ class HierarchicalClassifier:
             Evaluates the model on the test set and returns a DataFrame with predictions and accuracy.
             The DataFrame contains the filename, truth label, predicted label, and accuracy.
         """
-        
         # Create a DataFrame to hold the results, starting with aligning the indices
         results = pd.DataFrame(index=X_test.index)
         # Add the filename for easy identification
@@ -155,9 +161,8 @@ class HierarchicalClassifier:
             for i, cls in enumerate(model.classes_):
                 results[f"{model_name}_proba_{cls}"] = proba[:, i]
 
-        
         return results
-    
+
     def _train_and_evaluate_classifiers(
         self, 
         classifiers: dict[str, BaseEstimator], 
@@ -170,47 +175,43 @@ class HierarchicalClassifier:
         """
         Trains classifiers and evaluates them. Returns trained models and a combined results DataFrame.
         """
-        
         # Initialize a dictionary to store the trained models
         trained_models = {}
         combined_results_df = None
 
         # Iterate through the classifiers
         for name, clf in classifiers.items():
-            print(f"Training {name} classifier...")
+            print(f"[INFO] - LINE 183 - classifier.py - Training {name} classifier")
             # Pass the training values to the initialized objects, which then fits the models
             model = clf.fit(X_train, Y_train)
-            
+
             # Save the created model
             trained_models[name] = model
-            
+
             # Evaluate the model on the test set and store the results
             # The evaluate_model function returns a DataFrame with predictions and accuracy
             result_df = self._evaluate_model(model, X_test, Y_test, name, group_name)
-            
+
             # Combine the results into one DataFrame
             if combined_results_df is None:
                 combined_results_df = result_df
             else:
                 result_df = result_df.drop(columns=["filename", "truth_label"])
                 combined_results_df = combined_results_df.join(result_df)
-        
+
         # Add disagreement column to the combined results DataFrame
         pred_cols = [f"{name}_pred" for name in trained_models.keys()]
         combined_results_df[f"disagreement_{group_name}"] = (combined_results_df[pred_cols].nunique(axis=1) > 1).astype(int)
 
-
         return trained_models, combined_results_df
-    
+
     def _level1(self) -> pd.DataFrame:
         """
             Trains and evaluates the Level 1 classifier on the binary labels.
             The trained models are stored in self.trained_models["level1"].
             The predictions and accuracy are stored in results
         """
-        
-        print("Training Level 1 classifier...")
-        
+        print("[INFO] - classifier.py - LINE 213 - Training Level 1 classifier in progress")
         # Get the models and results from _train_and_evaluatec
         models, results_df = self._train_and_evaluate_classifiers(
             self.classifiers_level1,
@@ -220,26 +221,28 @@ class HierarchicalClassifier:
             self.Y_test_binary,
             group_name="level1"
         )
-        
+
         # Save the models
         self.trained_models["level1"] = models
         # Return the results
         return results_df
-    
+
     def _level2(self, group: str) -> pd.DataFrame:
         """
-            Trains and evaluates the Level 2 classifier on the categorical labels 
+            Trains and evaluates the Level 2 classifier on the categorical labels
             The trained models are stored in self.trained_models["level2_cancer/non_cancer"].
             The predictions and accuracy are stored in results
         """
-        print(f"Training Level 2 classifier for group: {group}")
-        
+        print(f"[INFO] - classifier.py - LINE 235 - Training Level 2 classifier in progress for group '{group}'")
+
         # Makes masks and chooses the right classifiers depending on which group we run it on(cancer/non-cancer)
         if group == "cancer":
+            # Create filter for cancer samples
             mask_train = self.Y_train_binary == True
             mask_test = self.Y_test_binary == True
             classifiers = self.classifiers_level2_cancer
         else:
+            # Create filter for non-cancer samples
             mask_train = self.Y_train_binary == False
             mask_test = self.Y_test_binary == False
             classifiers = self.classifiers_level2_non_cancer
@@ -249,8 +252,7 @@ class HierarchicalClassifier:
         X_test_subset = self.X_test[mask_test]
         Y_train_subset = self.Y_train_categorical[mask_train]
         Y_test_subset = self.Y_test_categorical[mask_test]
-        
-        
+
         # Get the models and results from _train_and_evaluatec
         models, results_df = self._train_and_evaluate_classifiers(
             classifiers,
@@ -264,57 +266,43 @@ class HierarchicalClassifier:
         self.trained_models[f"level2_{group}"] = models
         # Return the results
         return results_df
-        
-    
+
     def _run(self) -> dict[str, pd.DataFrame]:
         """
             Runs the training and evaluation process on both levels.
             The results are stored in self.results.
             This method is only called internally and is not meant to be called outside of the class.
         """
-        print("Running the hierarchical classifier...")
+        print("[INFO] - classifier.py - LINE 275 - Hierarchical classifier is running")
         # Initialize a dictionary to store the results for each level
         combined_results = {}
-        
+
         # First, we train the Level 1 classifier, so only for binary label
         combined_results["level1"] =  self._level1()
 
         # Then, we train the Level 2 classifier for both cancer and non-cancer labels
         combined_results["level2_cancer"] = self._level2("cancer")
         combined_results["level2_non_cancer"] = self._level2("non_cancer")
-    
+
         return combined_results
 
-    def run(self) -> None:
-        """
-            Runs the classifier. This method is called outside of the class.
-        """
-        # Run the training and evaluation process on both levels
-        self.results = self._run()
-        
-        # Save the results to a CSV file if an output path is provided
-        self._save_results()
-        
     def _save_results(self) -> None:
         """
             Saves the results to a CSV file if an output path is provided.
         """
-        
         if self.output_path:
-            print("Saving results to CSV files...")
+            print("[INFO] - classifier.py - LINE 293 - Saving results to CSV files")
             # Save the DataFrame to CSV files
             for group, results in self.results.items():
                 # Save each group's results to a separate CSV file
                 group_output_path = os.path.join(self.output_path, f"results_{group}.csv")
                 results.to_csv(group_output_path, index=False)
-                print(f"Classifier model results for {group} saved to {group_output_path}")
-                
+                print(f"[INFO] - classifier.py - LINE 299 - Model results for {group} saved to {group_output_path}")
+
     def save_config(self) -> None:
         """
-            Saves the classifier configuration, parameters and dataset stats to a JSON file if an output path is provided.
+            Saves the classifier configuration, parameters and dataset stats to a JSON file
         """
-        # Build the configuration dictionary
-        
         # Helper function to extract fitted parameters from a classifier
         def extract_fitted_params(clf):
             """Extracts fitted parameters from a classifier"""
@@ -334,10 +322,9 @@ class HierarchicalClassifier:
                 extracted_params["feature_importances_"] = clf.feature_importances_.tolist()
             
             # Model specific attributes
-                
-            
             return extracted_params
-            
+        
+        # Build the configuration dictionary
         config = {
             "timestamp": datetime.now().isoformat(),
             "dataset_stats": {
@@ -360,18 +347,15 @@ class HierarchicalClassifier:
             "classifiers_level_level2_non_cancer": {
                 name: extract_fitted_params(clf) for name, clf in self.classifiers_level2_non_cancer.items()
             }
-            
         }
-        
         
         # save the config to a JSON file
         config_path = os.path.join(self.output_path, "classifier_config.json")
-        
         with open(config_path, "w") as f:
             json.dump(config, f, indent=4)
-        print(f"Classifier configuration saved to {config_path}")
-            
-            
+
+        print(f"[INFO] - classifier.py LINE 356 - Classifier configuration saved to {config_path}")
+
     def tune_hyperparameters(self, level: str, model_name: str, param_grid: dict) -> None:
         """
             Hyperparameter tuning for a specific model using GridSearchCV.
@@ -384,7 +368,7 @@ class HierarchicalClassifier:
             models = self.classifiers_level2_non_cancer
         # Check if the model name is valid
         if model_name not in models:
-            raise ValueError(f"Model {model_name} not found in classifiers_level1.")
+            raise ValueError(f"[ERROR] - classifier.py - LINE 370 - Model '{model_name}' not found in the specified level '{level}'")
         
         # Get the model
         model = models[model_name]
@@ -406,7 +390,7 @@ class HierarchicalClassifier:
             X_train_subset = self.X_train[mask_train]
             Y_train_subset = self.Y_train_categorical[mask_train]
             grid_search.fit(X_train_subset, Y_train_subset)
-            
+
         # Save the best parameters
         best_params = grid_search.best_params_
         # Save the best model
@@ -414,7 +398,6 @@ class HierarchicalClassifier:
         self.trained_models[level][model_name] = best_model
 
         # Print the best parameters
-        print(f"Best parameters for {model_name}: {grid_search.best_params_}")
+        print(f"[INFO] - classifier.py - LINE 400 - Best parameters for {model_name}: {grid_search.best_params_}")
         y_pred = best_model.predict(self.X_test)
-        print("Accuracy:", accuracy_score(self.Y_test_binary, y_pred))
-            
+        print(f"[INFO] - classifier.py - LINE 402 - Accuracy: {accuracy_score(self.Y_test_binary, y_pred)}")
