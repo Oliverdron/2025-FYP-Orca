@@ -20,7 +20,7 @@ for col in numeric_cols:
     plt.show()
 
 # Correlation matrix
-corr = df.corr()
+corr = df.corr(numeric_only=True)
 plt.figure()
 plt.imshow(corr, aspect='auto')
 plt.title('Correlation Matrix')
