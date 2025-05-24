@@ -1,4 +1,5 @@
 from util.inpaint_util import removeHair
+
 from util import (
     pd,
     cv2,
@@ -14,6 +15,7 @@ class Record:
         Record (child class):
             Args:
                 dataset (Dataset): The parent Dataset instance
+                id (str): The ID of a patient as it is possible to have multiple images from one patient
                 filename (str): The name of the image file
                 label (str): The label of the image
                 mask_fname (str | None): The filename of the mask (if exists)
@@ -38,8 +40,9 @@ class Record:
                 set_feature(name, value): Sets a feature in the features dictionary
                 get_feature(name): Retrieves a feature from the features dictionary
     """
-    def __init__(self, dataset: 'Dataset', filename: str, label: str, mask_fname: str = None) -> None:
+    def __init__(self, dataset: 'Dataset', id: str, filename: str, label: str, mask_fname: str = None) -> None:
         self.dataset = dataset
+        self.id = id
         self.filename = filename
         self.label_categorical = label
         self.label_binary = True if label in CANCEROUS else False 
@@ -60,12 +63,20 @@ class Record:
             mask_path = os.path.join(self.dataset.data_dir, "lesion_masks", self.mask_fname) if isinstance(self.mask_fname, str) else None
         )
 
-        # Apply hair removal
-        self.blackhat, self.thresh, self.img_out, self.img_hair_label = removeHair(self.img_rgb, self.img_gray)
+        # Pre-process Image Quality Check Using SSIM (Structural Similarity Index) and PSNR (Peak Signal-to-Noise Ratio)
+        #   If the PSNR is below the threshold, we will apply image denoising
+        #   SSIM: Measures the similarity between two images.
+        #   PSNR: Measures the peak signal-to-noise ratio, where values above 20 dB typically indicate acceptable image quality.
+        # Hair Removal: apply a black-hat morphological filter, which will help highlight the hair structures, followed by inpainting to remove them.
+        # Creating a Binary Mask for the Skin Lesion:
+        #   Convert the inpainted grayscale image to binary using Otsu's method.
+        #   Use local thresholding (dividing the image into subparts) for better results in varying light conditions
+        #   Use morphological operations (closing and opening) to clean up the mask
+
 
     def set_feature(self, name: str, value) -> None:
         # Stores one feature value under self.features[name]
-        print(f"[INFO] - img_util.py - LINE 68 - Setting feature {name!r} to {value}")
+        print(f"[INFO] - img_util.py - Setting feature {name!r} to {value}")
         self.features[name] = value
 
     def get_feature(self, name: str) -> float | None:
@@ -74,15 +85,27 @@ class Record:
         
 
 class Dataset:
-    def __init__(self, feature_extractors: dict[str, callable], base_dir: str, image_col: str = "image_path", mask_col: str = "image_mask_path", label_col: str = "label") -> None:
+    def __init__(
+            self, feature_extractors: dict[str, callable],
+            base_dir: str,
+            id_col: str = "ID",
+            image_col: str = "image_path",
+            mask_col: str = "image_mask_path",
+            label_col: str = "label",
+            shuffle: bool = False,
+            limit: int = None
+            ) -> None:
         """
             Dataset (parent class):
                 Args:
                     feature_extractors (dict): Dictionary containing feature extractor functions (Eg. feature_A, feature_B...)
                     base_dir (str): The base directory path
+                    id_col (int): ID Column in the CSV that contains the patient's ID
                     image_col (str): Column name in the CSV that contains image filenames
                     mask_col (str): Column name in the CSV that contains mask filenames (if exists)
                     label_col (str): Column name in the CSV that contains labels
+                    shuffle (bool): Whether to shuffle the records (default: False)
+                    limit (int): Limit the number of records processed (default: None, which means no limit)
                 
                 Methods:
                     - readImageFile(file_path): Reads an image from the specified file path and converts it to RGB and grayscale
@@ -95,34 +118,39 @@ class Dataset:
 
         csv_path = base_dir / "metadata.csv"
         if not csv_path.exists():
-            sys.exit(f"[ERROR] - img_util.py - LINE 97 - metadata.csv not found in {base_dir}")
+            sys.exit(f"[ERROR] - img_util.py - metadata.csv not found in {base_dir}")
         
         # Load metadata 
         df = pd.read_csv(csv_path)
 
         # Check if the required columns exist in the DataFrame
-        missing = [c for c in (image_col, label_col, mask_col) if c not in df.columns]
+        missing = [c for c in (id_col, image_col, label_col, mask_col) if c not in df.columns]
         if missing:
-            raise KeyError(f"[ERROR] - img_util.py - LINE 105 - Missing required column(s): {missing}")
+            raise KeyError(f"[ERROR] - img_util.py - Missing required column(s): {missing}")
         
+        # Shuffle the dataset if needed
+        if shuffle:
+            df = df.sample(frac=1).reset_index(drop=True)
+
         # Load each Record
         self.records = []
-        for filename, label, mask in zip(df[image_col], df[label_col], df[mask_col]):
-            print(f"[INFO] - img_util.py - LINE 110 - Current number of images: {len(self.records)}")
+        count = 0
+        for id, filename, label, mask in zip(df[id_col], df[image_col], df[label_col], df[mask_col]):
+            print(f"[INFO] - img_util.py - Current number of images: {len(self.records)}")
 
             # Create a new Record instance using the filename, label, and mask
             t0 = time.perf_counter()
-            rec = Record(self, filename, label, mask)
+            rec = Record(self, id, filename, label, mask)
             t1 = time.perf_counter()
             elapsed = t1 - t0
-            print(f"[INFO] - img_util.py - LINE 117 - Record {filename!r} took {elapsed:.4f}s to initialize")
+            print(f"[INFO] - img_util.py - Record {filename!r} took {elapsed:.4f}s to initialize")
             
             # Load the image data and apply hair removal
             t0 = time.perf_counter()
             rec.load()
             t1 = time.perf_counter()
             elapsed = t1 - t0
-            print(f"[INFO] - img_util.py - LINE 124 - Record {filename!r} took {elapsed:.4f}s to load")
+            print(f"[INFO] - img_util.py - Record {filename!r} took {elapsed:.4f}s to load")
 
             # Extract features using the provided feature extractors
             for feat_name, func in feature_extractors.items():
@@ -136,13 +164,23 @@ class Dataset:
                 #scaler = StandardScaler()
                 #value = scaler.fit_transform(value.reshape(-1, 1)).flatten()
                 rec.set_feature(f"{feat_name}", value)
-                print(f"[INFO] - img_util.py - LINE 138 - Feature {feat_name!r} took {elapsed:.4f}s, value={value}")
+                print(f"[INFO] - img_util.py - Feature {feat_name!r} took {elapsed:.4f}s, value={value}")
             
-            # Call the export_record method to save the Record instance's data to a CSV file
-            self.export_record(rec, os.path.join(self.base_dir, "dataset.csv"))
-
             # Append the Record instance to the records list
             self.records.append(rec)
+
+            if limit:
+                if count >= limit:
+                    print(f"[INFO] - img_util.py - Reached the limit of {limit} records for testing.")
+                    break
+                # Since we have a limit, it is a test-case, so save all information of a Record (including images)
+                self.export_record(rec, "dataset.csv", True)
+            else:
+                # Call the export_record method to save the Record instance's data to a CSV file
+                self.export_record(rec, "dataset.csv")
+            
+            # Limit the number of records processed for testing purposes
+            count += 1
 
     def readImageFile(self, file_path: str, mask_path: str = None) -> tuple:
         """
@@ -181,22 +219,23 @@ class Dataset:
         if mask_path:
             original_mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
 
-        print(f"[INFO] - img_util.py - LINE 183 - Loaded image {file_path} with shape {img_rgb.shape} | mask {mask_path} with shape {original_mask.shape if original_mask is not None else None}")
+        print(f"[INFO] - img_util.py - Loaded image {file_path} with shape {img_rgb.shape} | mask {mask_path} with shape {original_mask.shape if original_mask is not None else None}")
 
         return img_rgb, img_gray, original_mask
 
-    def export_record(self, rec: Record, csv_path: str):
+    def export_record(self, rec: Record, csv_name: str, save_images: bool = False) -> None:
         """
             Saves all text information of a Record instance to the specified CSV file
 
             Args:
                 rec (Record): The Record instance containing the image and its features
-                csv_path (str): The csv file's absolute path, where the information will be saved
+                csv_name (str): The csv file's name, which we use to build the absolute path
             
             Prints a warning if the writing operation fails
         """
         # Create a map of attributes to be saved
         to_save = {
+            "ID":                   rec.id,
             "filename":             rec.filename,
             "label_binary":         rec.label_binary,
             "label_categorical":    rec.label_categorical,
@@ -204,11 +243,29 @@ class Dataset:
         }
 
         try:
+            csv_path = self.base_dir / csv_name
             # Decide whether to write the header: only if the file doesn’t yet exist or is empty
             write_header = not os.path.exists(csv_path) or os.path.getsize(csv_path) == 0
             # Convert the dictionary to a DataFrame and save it to the CSV file
             pd.DataFrame([to_save]).to_csv(csv_path, mode='a', header=write_header, index=False)
-            print(f"[INFO] - img_util.py - LINE 210 - Appended {rec.filename} to {csv_path}")
+            print(f"[INFO] - img_util.py - Appended {rec.filename} to {csv_path}")
+
+            # Save the images if save_images is True
+            if save_images:
+                # Construct the folder path based on the filename (without extension)
+                file_name = rec.filename.split('.')[0]  # Extract filename without extension
+                result_dir = self.base_dir / "result" / "testing" / file_name  # Create the result folder path
+
+                # Create the directory if it does not exist (overwrite if needed)
+                result_dir.mkdir(parents=True, exist_ok=True)
+
+                # Save all images in the folder
+                cv2.imwrite(str(result_dir / f"{file_name}.png"), cv2.cvtColor(rec.img_rgb, cv2.COLOR_RGB2BGR))
+                cv2.imwrite(str(result_dir / f"{file_name}_gray.png"), rec.img_gray)
+                cv2.imwrite(str(result_dir / f"{file_name}_blackhat.png"), rec.blackhat)
+                cv2.imwrite(str(result_dir / f"{file_name}_thresh.png"), rec.thresh)
+                cv2.imwrite(str(result_dir / f"{file_name}_inpainted.png"), cv2.cvtColor(rec.img_out, cv2.COLOR_RGB2BGR))
+
         # Raise a warning if the writing operation fails
         except Exception as e:
-            print(f"[WARNING] - img_util.py - LINE 213 - Could not append to {csv_path}: {e}")
+            print(f"[WARNING] - img_util.py - Could not append to {csv_path}: {e}")
