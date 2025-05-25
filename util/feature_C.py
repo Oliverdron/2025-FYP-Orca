@@ -33,11 +33,11 @@ def color_heterogeneity(record: 'Record', n_clusters: int = 4, downscale: float 
         Returns:
             float: mean color heterogeneity in the interval of [0, infinity), or np.nan if no valid blobs
     """
-    # Thresh image contains either 0 or 255 values, so we need to convert it to boolean for easier processing
-    bin_mask = record.thresh.astype(bool)
+    # The original image should be already integer type, but we can make sure it is
+    bin_mask = record.image_data["original_img"].astype(int)
 
     # The label function returns a labeled array where each True component has a unique id
-    labeled = label(bin_mask.astype(int))
+    labeled = label(bin_mask)
     
     # The regionprops function scans the labeled array and returns an object (one per blob) that contains stats about it
     props = regionprops(labeled)

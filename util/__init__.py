@@ -7,7 +7,7 @@ import time
 # To avoid multithreading issues with OpenCV and NumPy, set the number of threads to 1
 os.environ["OMP_NUM_THREADS"] = "1"
 import random
-from math import sqrt, floor, ceil, nan, pi
+from math import sqrt, floor, ceil, nan, pi, log10, sqrt
 from statistics import variance, stdev
 from datetime import datetime
 
@@ -27,6 +27,7 @@ from skimage.filters import threshold_otsu
 from skimage.measure import label, regionprops
 from skimage.transform import resize, rotate
 from skimage.segmentation import slic
+from skimage.metrics import structural_similarity as ssim
 
 # ── Scikit-learn & Pandas ─────────────────────────────────────────────────────
 import pandas as pd

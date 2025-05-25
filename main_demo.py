@@ -17,8 +17,8 @@ from util import (
 )
 
 FEATURE_MAP = {
-    #"feat_A": extract_feature_A,
-    #"feat_B": extract_feature_B,
+    "feat_A": extract_feature_A,
+    "feat_B": extract_feature_B,
     #"feat_C": extract_feature_C,
     #"feat_D": any
     # ALSO IMPORT EXTENDED FEATURES IN EXTENDED.py LATER!!!
@@ -63,13 +63,18 @@ def main():
     base = get_base_dir()
 
     # 2) Set up result output path
-    output_path = base / "result" 
+    output_path = base / "result"
 
     # 4) Build Dataset so we can train/evaluate/test our model directly (this also calls Record.load() for each image)
     # This should only run if the dataset.csv file does not exist yet, as the dataset.csv file should contain the extracted feature values
-    if not os.path.exists(os.path.join(base, "dataset.csv")):
-        print("[INFO] - main_demo.py - Dataset not found, creating new one")
-        ds = Dataset(FEATURE_MAP, base)
+    
+    # ------- FOR TESTING -------
+    #if not os.path.exists(os.path.join(base, "dataset.csv")):
+    #    print("[INFO] - main_demo.py - Dataset not found, creating new one")
+    ds = Dataset(feature_extractors=FEATURE_MAP, base_dir=base, shuffle=True, limit=25)
+    # Later on 'record.image_data["threshold_segm_mask"]' should never be None
+    # But now is, which will lead to a 'NoneType' attribute access error
+    # ---------------------------
 
     # 5) Pass the Dataset to the classifier model for training and evaluation
     # SAVE THE BEST CLASSIFIER BASED ON AVERAGE VALIDATION PERFORMANCE AT MULTIPLE TRAINING SET SIZES (learning curves)
