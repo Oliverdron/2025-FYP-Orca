@@ -55,7 +55,7 @@ def vascular_score(record: 'Record') -> float:
         return 0.0
 
     # calculate vesselness using Frangi filter
-    vesselness = frangi(gray_img)
+    vesselness = frangi(gray_img) # binary mask
 
     # mask the vesselness with the red mask
     masked_vesselness = vesselness * red_mask

@@ -24,14 +24,24 @@ def hair_feat_extraction(record: 'Record'):
     Returns:
         None: The function modifies the record in place, adding the hairiness score to its features.
     """    
-    
+    img = record.image_data["original_img"]
     gray = record.image_data["grayscale_img"]
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
     blackhat = record.image_data["blackhat_img"]
     hair_mask = record.image_data["threshold_hair_mask"]
+    inpainted = record.image_data["inpainted_img"]
+
+
+    # Method 1:
+    # Compute the hairiness score based on the difference between the original image and the inpainted image
+    hair_only = cv2.absdiff(img, inpainted)
+    gray_hair = cv2.cvtColor(hair_only, cv2.COLOR_BGR2GRAY)
+    _, hair_cleaned = cv2.threshold(gray_hair, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    score = np.sum(hair_cleaned == 255) / hair_cleaned.size
     
+    
+    # Method 2:
+    # Calculate the hairiness score based on the hair mask
     hair_pixels = np.sum(hair_mask > 0)
     total_pixels = hair_mask.size
     hairiness_score1 = hair_pixels / total_pixels
@@ -40,8 +50,9 @@ def hair_feat_extraction(record: 'Record'):
     # to compute the vesselness score
     vesselness = frangi(gray)
     hairiness_score2 = np.mean(vesselness)
-    hairiness_score_total = hairiness_score1 * 0.5 + hairiness_score2 * 0.5
+    score = hairiness_score1 * 0.5 + hairiness_score2 * 0.5
+    
     
     # Add the hairiness score to the record's features
-    record.features["hair_label"] = hairiness_score_total
+    record.features["hair_label"] = score
 
