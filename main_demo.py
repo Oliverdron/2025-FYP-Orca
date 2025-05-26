@@ -1,7 +1,8 @@
 from util.img_util       import Dataset, Record
-from util.feature_A      import asymmetry           as extract_feature_A
-from util.feature_B      import border_irregularity as extract_feature_B
-from util.feature_C      import color_heterogeneity as extract_feature_C
+from util.feature_A      import asymmetry            as extract_feature_A
+from util.feature_B      import border_irregularity  as extract_feature_B
+from util.feature_C      import color_heterogeneity  as extract_feature_C
+from util.feature_D      import hair_feat_extraction as hair_extraction
 from util.classifier     import HierarchicalClassifier
 
 from util import (
@@ -20,7 +21,7 @@ FEATURE_MAP = {
     "feat_A": extract_feature_A,
     "feat_B": extract_feature_B,
     #"feat_C": extract_feature_C,
-    #"feat_D": any
+    #"feat_D": hair_extraction,
     # ALSO IMPORT EXTENDED FEATURES IN EXTENDED.py LATER!!!
 }
 
