@@ -23,7 +23,7 @@ from scipy.spatial.distance import pdist
 from skimage import color, exposure, morphology
 from skimage.color import rgb2gray, rgb2hsv, rgb2lab
 from skimage.feature import blob_log
-from skimage.filters import threshold_otsu
+from skimage.filters import threshold_otsu, frangi
 from skimage.measure import label, regionprops
 from skimage.transform import resize, rotate
 from skimage.segmentation import slic
