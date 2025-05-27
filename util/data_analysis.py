@@ -10,6 +10,17 @@ Our model is mainly trained on adult to elderly patients,(extrapolating to young
     - Median age of patients in the dataset is 60 years
     - Age range: 6 to 94
 
+GENDER DISTRIBUTION:
+Slight imbalance in gender distribution, with a higher number of females.
+    - Female: 753 
+    - Male: 741
+
+CANCER HISTORY:
+Patients with no past history of skin cancer: 813
+Most common cancer diagnoses:
+    - BCC: 845
+    - ACK: 730
+    - NEV: 244
 
 # '''
 # 1) Dataset summary analysis:
@@ -26,7 +37,7 @@ df = pd.read_csv(metadata_path)
 #DATASET SUMMARY 
 # Total number of entries
 total_entries = len(df)
-print(f"# 2) Total entries in dataset: {total_entries}")
+# print(f"# 2) Total entries in dataset: {total_entries}")
 
 # Non-null counts for key partially-filled columns
 key_cols = ['gender', 'drink', 'smoke', 'pesticide', 'skin_cancer_history']
@@ -45,8 +56,26 @@ age_max = df['age'].max()
 # print(f'Median age of patients in the dataset: {median_age} years')
 # print(f'Age range: {age_min} to {age_max} years')
 
+# GENDER DISTRUBUTION
+gender_counts = df['gender'].value_counts()
+# print(f"# 3) Gender distribution:")
+# for gender, count in gender_counts.items():
+#     print(f"{gender}: {count}")
 
-#2) DATA SET VISUALIZATION 
+# Skin cancer history
+skin_cancer_counts = df['skin_cancer_history'].value_counts()
+# print(f"4) Skin cancer history:")
+# for hist, count in skin_cancer_counts.items():
+#     print(f"{hist}: {count}")
+
+# Most common diagnoses
+diagnosis_counts = df['diagnostic'].value_counts().head(3)
+# print("5) Most common diagnoses:")
+# for diag, count in diagnosis_counts.items():
+#     print(f"{diag}: {count}")
+
+
+##2) DATA SET VISUALIZATION 
 
 
 
