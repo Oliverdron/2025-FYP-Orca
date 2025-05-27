@@ -1,9 +1,9 @@
 from util.img_util       import Dataset, Record
-from util.feature_A      import asymmetry            as extract_feature_A
-from util.feature_B      import border_irregularity  as extract_feature_B
-from util.feature_C      import color_heterogeneity  as extract_feature_C
+from util.feature_A      import asymmetry           as extract_feature_A
+from util.feature_B      import border_irregularity as extract_feature_B
+from util.feature_C      import color_heterogeneity as extract_feature_C
 from util.feature_D      import hair_feat_extraction as hair_extraction
-from util.classifier     import HierarchicalClassifier
+from util.classifier     import Classifier
 
 from util import (
     Path, pd, os,
@@ -14,43 +14,63 @@ from util import (
     SVC,
     MLPClassifier,
     RFE,
-    plt
+    plt,
+    Pipeline,
+    StandardScaler
 )
 
 FEATURE_MAP = {
-    "feat_A": extract_feature_A,
+    #"feat_A": extract_feature_A,
     "feat_B": extract_feature_B,
     #"feat_C": extract_feature_C,
     #"feat_D": hair_extraction,
     # ALSO IMPORT EXTENDED FEATURES IN EXTENDED.py LATER!!!
 }
 
-# Set classifiers according to discussion with the team
-CLASSIFIERS_LEVEL1 = {
-    #"lr": LogisticRegression(max_iter = 1000, random_state = 42, verbose = 0),
-    #"gb": GradientBoostingClassifier(random_state = 42, verbose = 0),
-    #"rf": RandomForestClassifier(random_state = 42, verbose = 0),
-    #"knn": KNeighborsClassifier(n_neighbors=5, n_jobs=-1),
-    #"svc": SVC(kernel='linear', random_state=42, verbose=0),
-    "mlp": MLPClassifier(random_state=42, verbose=0, max_iter=1000, hidden_layer_sizes=(100,50)),
+# Set classifiers according to discussion with the team. Using Pipelines for clear and consistent preprocessing and model training. 
+# Data leakage is avoided by using StandardScaler within the Pipeline, ensuring that scaling is applied only to the training data during cross-validation.
+ALL_CLASSIFIERS = {
+    "lr": Pipeline([
+        ("scaler", StandardScaler()),
+        ("clf", LogisticRegression(max_iter=1000, random_state=42))
+    ]),
+    "rf": Pipeline([
+        # forest models often work without scaling, but it's OK here
+        ("scaler", StandardScaler()),
+        ("clf", RandomForestClassifier(n_jobs=-1, random_state=42))
+    ]), 
+    "mlp": Pipeline([
+        ("scaler", StandardScaler()),
+        ("clf", MLPClassifier(early_stopping=True, random_state=42))
+    ]),
+    "knn": Pipeline([
+        ("scaler", StandardScaler()),
+        ("clf", KNeighborsClassifier(n_jobs=-1))
+    ]),
+    "svc": Pipeline([
+        ("scaler", StandardScaler()),
+        ("clf", SVC(kernel='linear', random_state=42, verbose=0))
+    ]),
+    "gb": Pipeline([
+        ("scaler", StandardScaler()),
+        ("clf", GradientBoostingClassifier(random_state=42, verbose=0))
+    ]), 
+   
 }
 
-CLASSIFIERS_LEVEL2_CANCER = {
-    #"lr": LogisticRegression(max_iter = 1000, random_state = 42, verbose = 0),
-    #"gb": GradientBoostingClassifier(random_state = 42, verbose = 0),
-    #"rf": RandomForestClassifier(random_state = 42, verbose = 0),
-    #"knn": KNeighborsClassifier(n_neighbors=5, n_jobs=-1),
-    #"svc": SVC(kernel='linear', random_state=42, verbose=0),
-    "mlp": MLPClassifier(random_state=42, verbose=0, max_iter=1000, hidden_layer_sizes=(100,50)),
-}
+# Choose a subset by name
+SELECTED = ["mlp"]
+CLASSIFIERS = {k: ALL_CLASSIFIERS[k] for k in SELECTED}
 
-CLASSIFIERS_LEVEL2_NON_CANCER = {
-    #"lr": LogisticRegression(max_iter = 1000, random_state = 42, verbose = 0),
-    #"gb": GradientBoostingClassifier(random_state = 42, verbose = 0),
-    #"rf": RandomForestClassifier(random_state = 42, verbose = 0),
-    #"knn": KNeighborsClassifier(n_neighbors=5, n_jobs=-1),
-    #"svc": SVC(kernel='linear', random_state=42, verbose=0),
-     "mlp": MLPClassifier(random_state=42, verbose=0, max_iter=1000, hidden_layer_sizes=(100,50)),
+PARAM_GRIDS = {
+    "mlp": 
+    {
+    'clf__hidden_layer_sizes': [(64,), (128,), (64, 32), (128, 64)],
+    'clf__activation': ['relu', 'tanh'],
+    'clf__alpha': [0.0001, 0.001, 0.01],
+    'clf__learning_rate_init': [0.001, 0.0001],
+    'clf__batch_size': [32, 64]
+    },
 }
 
 def get_base_dir() -> Path:
@@ -72,7 +92,7 @@ def main():
     # ------- FOR TESTING -------
     #if not os.path.exists(os.path.join(base, "dataset.csv")):
     #    print("[INFO] - main_demo.py - Dataset not found, creating new one")
-    ds = Dataset(feature_extractors=FEATURE_MAP, base_dir=base, shuffle=True, limit=25)
+    # ds = Dataset(feature_extractors=FEATURE_MAP, base_dir=base, shuffle=True, limit=25)
     # Later on 'record.image_data["threshold_segm_mask"]' should never be None
     # But now is, which will lead to a 'NoneType' attribute access error
     # ---------------------------
@@ -86,31 +106,34 @@ def main():
     # Aim for similar performance on training and validation sets
     # For classifiers relying on distances, scale the features using StandardScaler from scikit-learn
     # Record class now have an ID attr., indicating the patient's ID as there could be more image for one
-    if not os.path.exists(os.path.join(output_path, "classifier_config.json")):
-        print("[INFO] - main_demo.py - Classifier config not found, creating new one")
-        hierarchicalClassifier = HierarchicalClassifier(
-            base,
-            list(FEATURE_MAP.keys()),
-            CLASSIFIERS_LEVEL1,
-            CLASSIFIERS_LEVEL2_CANCER,
-            CLASSIFIERS_LEVEL2_NON_CANCER,
-            test_size=0.3,
-            random_state=42,
-            output_path=output_path
-        )
+ 
+    clf = Classifier(
+        base,
+        list(FEATURE_MAP.keys()),
+        CLASSIFIERS,
+        test_size=0.2,
+        random_state=42,
+        output_path=output_path
+    )
+    clf.load_split_data()
+    clf.hyperparameter_tuning(PARAM_GRIDS, scoring="roc_auc")  
+    clf.optimize_thresholds(scoring="roc_auc")  
+
+    
+    print(clf.trained_models)
+    
+    # Only run this when classifiers are trained and saved to the maximum extent
+    clf.evaluate_classifiers()  
+
     # IF CLASSIFIER_CONFIG.JSON EXISTS, IMPORT AND HAVE METHOD TO CLASSIFY OTHER DATASET!
     # VISUALIZE THE TRAINED CLASSIFIER (see: https://stackoverflow.com/questions/41138706/recreating-decision-boundary-plot-in-python-with-scikit-learn-and-matplotlib)
     
-    param_grid = {
-    'C': [0.01, 0.1, 1, 10, 100],  # Regularization strength for Logistic Regression
-    'solver': ['liblinear', 'saga'],  # Solvers to use in Logistic Regression
-    'max_iter': [100, 200, 300]  # Max iterations for optimization
-    }
-    #hierarchicalClassifier.tune_hyperparameters("level1", "lr", param_grid)   
+    
+
     
         # In classifier.py -> Save the best model's results/parameters
 
-    model = RandomForestClassifier(n_estimators=100, random_state=42)
+"""    model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(hierarchicalClassifier.X, hierarchicalClassifier.Y_binary)
     importances = pd.Series(model.feature_importances_, index=hierarchicalClassifier.X.columns)
     importances = importances.sort_values(ascending=False)
@@ -119,7 +142,7 @@ def main():
     importances[:2].plot(kind='barh')
     plt.gca().invert_yaxis()
     plt.title(f"Top {2} Features by Random Forest Importance")
-    plt.show()
+    plt.show()"""
 
 if __name__ == "__main__":
     main()

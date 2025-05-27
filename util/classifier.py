@@ -4,400 +4,210 @@ from util import (
     np,
     os,
     pd,
+    StratifiedGroupKFold,
     BaseEstimator,
     GridSearchCV,
     RandomizedSearchCV,
-    train_test_split,
     StandardScaler,
+    TunedThresholdClassifierCV,
+    Pipeline,
     accuracy_score,
-    classification_report
+    classification_report,
+    cross_validate,
+    clone,
+    precision_score,
+    recall_score,
+    f1_score,
+    roc_auc_score
 )
 
-class HierarchicalClassifier:
-    """ 
-        HierarchicalClassifier is a class that implements a two-level hierarchical classification system.
-            - The first level classifies samples into binary labels (cancer or non-cancer)
-            - The second level classifies samples into specific cancer types or non-cancer types based on the first level's predictions
-        
-        Args:
-            base_dir (str): Base directory's absolute path
-            feature_names (list): List containing feature extractor names (Eg. "feat_A", "feat_B"...)
-            classifiers_level1 (dict): Dictionary mapping classifier names and models for level 1 classification 
-            classifiers_level2_cancer (dict): Dictionary mapping classifier names and models for level 2-cancer classification 
-            classifiers_level2_non_cancer (dict): Dictionary mapping classifier names and models for level 2-non-cancer classification
-            test_size (float): Fraction of data to hold out for testing
-            random_state (int): Random seed for reproducibility
-            output_path (str): If provided, save the results CSV here
-
-        Attributes:
-            base_dir (str): Base directory's absolute path
-            feature_names (list): List containing feature extractor names (Eg. "feat_A", "feat_B"...)
-            classifiers_level1 (dict): Dictionary mapping classifier names and models for level 1 classification 
-            classifiers_level2_cancer (dict): Dictionary mapping classifier names and models for level 2-cancer classification 
-            classifiers_level2_non_cancer (dict): Dictionary mapping classifier names and models for level 2-non-cancer classification
-            test_size (float): Fraction of data to hold out for testing
-            random_state (int): Random seed for reproducibility
-            output_path (str): If provided, save the results CSV here
-            trained_models (dict): Dictionary to store trained models for each level
-            results (dict): Dictionary to store results for each level
-            df (pd.DataFrame): DataFrame containing the dataset
-            X (pd.DataFrame): DataFrame containing the features
-            Y_binary (pd.Series): Series containing the binary labels
-            Y_categorical (pd.Series): Series containing the categorical labels
-            X_test (pd.DataFrame): DataFrame containing the test features
-            X_train (pd.DataFrame): DataFrame containing the training features
-            Y_test_binary (pd.Series): Series containing the test binary labels
-            Y_train_binary (pd.Series): Series containing the training binary labels
-            Y_test_categorical (pd.Series): Series containing the test categorical labels
-            Y_train_categorical (pd.Series): Series containing the training categorical labels
-
-        Methods:
-            Methods are not called outside of the class, so making them private
-            _load_dataset(): Loads the dataset from the specified base directory.
-            _split_data(): Splits the dataset into training and testing sets using the specified parameters.
-            _evaluate_model(model, X_test, Y_test, model_name): Evaluates the model on the test set and returns a DataFrame with predictions and accuracy.
-            _train_and_evaluate_classifiers(classifiers, X_train, Y_train, X_test, Y_test, group_name): Trains classifiers and evaluates them.
-            _level1(): Trains and evaluates the Level 1 classifier on the binary labels.
-            _level2(group): Trains and evaluates the Level 2 classifier on the non-cancer or cancer labels.
-            _run(): Runs the training and evaluation process on both levels.
-            _save_results(): Saves the results to a CSV file if an output path is provided.
-            save_config() : Saves the configuration to a JSON file if an output path is provided.
-            tune_hyperparameters(level, model_name, param_grid): Hyperparameter tuning for a specific model using GridSearchCV.
-            
-    """
+class Classifier:
     def __init__(
         self,
         base_dir: str,
         feature_names: list,
-        classifiers_level1: dict[str, BaseEstimator],
-        classifiers_level2_cancer: dict[str, BaseEstimator],
-        classifiers_level2_non_cancer: dict[str, BaseEstimator],
+        classifiers: dict[str, Pipeline],
         test_size: float = 0.3,
         random_state: int = 42,
         output_path: str = None
     ) -> None:
         self.base_dir = base_dir
         self.feature_names = feature_names
-        self.classifiers_level1 = classifiers_level1
-        self.classifiers_level2_cancer = classifiers_level2_cancer
-        self.classifiers_level2_non_cancer = classifiers_level2_non_cancer
+        self.classifiers = classifiers
         self.test_size = test_size
         self.random_state = random_state
-        self.output_path = output_path
+        self.output_path = output_path 
         self.trained_models = {}
-        self.reports = {}
-        self.results = {}
+        self.final_results = {}
+        self.final_probabilities = None
+        self.best_thresholds = {}
         
-        # Load the dataset
-        self._load_dataset()
+    def load_split_data(self, filename: str = "dataset.csv") -> None:
+        """
+        Load the dataset from a CSV file and split it into training, validation, and test sets.
+        """
         
-        # Split the dataset into training and testing sets
-        self._split_data()
-
-        # Run the training and evaluation process on both levels
-        self.results = self._run()
-
-        # Save the results to a CSV file if an output path is provided
-        self._save_results()
-
-        # Save the classifier configuration, parameters and dataset stats to a JSON file
-        self.save_config()
-
-    def _load_dataset(self) -> None:
-        """
-            Loads the dataset from the specified base directory and extracts features.
-            The features are stored in self.X, and the labels in self.Y_binary and self.Y_categorical.
-        """
+        # Couldn't seem to find a way to have stratified shuffled group single split, so we do it with 
+        # StratifiedGroupKFold with n_splits=5, which gives us approximately 80% train and 20% test split
+        
+        print(f"[INFO] - classifier.py - Line 45 - Loading dataset from {filename} and splitting into train, val, and test sets.")
         # Load the dataset, which stores pre-calculated features and labels
-        self.df = pd.read_csv(os.path.join(self.base_dir, "dataset.csv"))
-        # Extract features and labels
+        self.df = pd.read_csv(os.path.join(self.base_dir, filename))
         self.X = self.df[self.feature_names]
-        self.Y_binary = self.df['label_binary']
-        self.Y_categorical = self.df['label_categorical']
+        self.y = self.df['label_binary']
+        groups = self.df['patient_id']
         
-    def _split_data(self) -> None:
-        """
-            Splits the dataset into training and testing sets using the specified parameters.
-            The training and testing sets are stored in self.X_train, self.X_test, self.Y_train_binary, self.Y_test_binary, self.Y_train_categorical, and self.Y_test_categorical.
-            The features are standardized using StandardScaler.
-        """
-        # Split the dataset into training and testing sets using the provided parameters
-        self.X_train, self.X_test, self.Y_train_binary, self.Y_test_binary, self.Y_train_categorical, self.Y_test_categorical = train_test_split(
-            self.X, self.Y_binary, self.Y_categorical,
-            test_size=self.test_size,
-            random_state=self.random_state,
-            stratify = list(zip(self.Y_binary, self.Y_categorical)) # Stratify by both binary and categorical labels to ensure that both distributions are representative
-        )
-        # Standardize the features using StandardScaler
-        scaler = StandardScaler()
-        # .fit_transform() method computes the mean and standard deviation of the training data and scales it
-        self.X_train = pd.DataFrame(scaler.fit_transform(self.X_train), columns=self.X_train.columns, index=self.X_train.index)
-        # the .transform() method is applied to the testing data using the mean and standard deviation computed from the training data earlier
-        # This ensures that the testing data is scaled in the same way as the training data
-        self.X_test = pd.DataFrame(scaler.transform(self.X_test), columns=self.X_test.columns, index=self.X_test.index)
+        # 1. Initial split: Train (80%) + Test (20%)
+        # n_splits=5 equals approximately 80% train and 20% test split
+        sgkf_test = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=self.random_state)
+        self.train_idx, self.test_idx = next(sgkf_test.split(self.X, self.y, groups))
+        X_train = self.X.iloc[self.train_idx]
+        self.X_test = self.X.iloc[self.test_idx]
+        y_train = self.y.iloc[self.train_idx]
+        self.y_test = self.y.iloc[self.test_idx]
+
+        # 2. Split train into train_sub (64%) + val (16%) 
+        # val_size is 20% of TRAINING data (0.2 * 0.8 = 0.16 of total)
+        train_groups = groups.iloc[self.train_idx]
+        sgkf_val = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=self.random_state + 1)
+        self.train_sub_idx, self.val_idx = next(sgkf_val.split(X_train, y_train, train_groups))
+        self.X_train_sub = X_train.iloc[self.train_sub_idx]
+        self.X_val = X_train.iloc[self.val_idx]
+        self.y_train_sub = y_train.iloc[self.train_sub_idx]
+        self.y_val = y_train.iloc[self.val_idx]
         
-    def _evaluate_model(self, model, X_test, Y_test, model_name: str, group_name: str) -> pd.DataFrame:
-        """
-            Evaluates the model on the test set and returns a DataFrame with predictions and accuracy.
-            The DataFrame contains the filename, truth label, predicted label, and accuracy.
-        """
-        # Create a DataFrame to hold the results, starting with aligning the indices
-        results = pd.DataFrame(index=X_test.index)
-        # Add the filename for easy identification
-        results["filename"] = self.df.loc[X_test.index, "filename"]
-        # Add the truth labels and the predicted labels from both models
-        results["truth_label"] = Y_test.values
-        preds = model.predict(X_test)
-        # Make report with classification_report and save it
-        self.reports[f"{group_name}_{model_name}"] = classification_report(Y_test, preds, output_dict=True, zero_division=0)
-        results[f"{model_name}_pred"] = preds
-        # Calculate overall accuracy and add it to the results rounded to 3 deciamls
-        results[f"{model_name}_accuracy"] = np.round(accuracy_score(Y_test, preds), 3)
-        # Calculate and add label probabilities to the results
-        # But first, check if the classifier has the predict_proba method
-        if hasattr(model, "predict_proba"):
-            proba = model.predict_proba(X_test)
-            proba = np.round(proba, 3)  # Round probabilities to 3 decimal places
-            for i, cls in enumerate(model.classes_):
-                results[f"{model_name}_proba_{cls}"] = proba[:, i]
 
-        return results
 
-    def _train_and_evaluate_classifiers(
-        self, 
-        classifiers: dict[str, BaseEstimator], 
-        X_train: pd.DataFrame, 
-        Y_train: pd.Series, 
-        X_test: pd.DataFrame, 
-        Y_test: pd.Series, 
-        group_name: str
-    ) -> tuple[dict, pd.DataFrame]:
-        """
-        Trains classifiers and evaluates them. Returns trained models and a combined results DataFrame.
-        """
-        # Initialize a dictionary to store the trained models
-        trained_models = {}
-        combined_results_df = None
+        # Check class balance
+        self._verify_splits(groups)
+        
+        
+    def _verify_splits(self, groups):
+        """Validate group separation and class balance."""
+        print("[INFO] - classifier.py - Line 110 - Verifying splits for group separation and class balance.")
+        
+        # Check no patient overlap
+        train_groups = set(groups.iloc[self.train_idx].iloc[self.train_sub_idx])
+        val_groups = set(groups.iloc[self.train_idx].iloc[self.val_idx])
+        assert train_groups.isdisjoint(val_groups), "Group leakage detected!"
+        
+        # Check minimum samples
+        assert min(self.y_val.value_counts()) >= 20, "Increase val_size!"
+        
+        print("Class distributions:")
+        print(f"Train: {self.y_train_sub.value_counts(normalize=True)}")
+        print(f"Val: {self.y_val.value_counts(normalize=True)}")
+        print(f"Test: {self.y_test.value_counts(normalize=True)}")
+        
+        
+        print(f"\nSplit Verification:")
+        print(f"Train: {len(self.train_idx)}, Val: {len(self.val_idx)}, Test: {len(self.test_idx)}")
+        print(f"Total: {len(self.train_sub_idx)+len(self.val_idx)+len(self.test_idx)} vs Original: {len(self.df)}")     
+    
+    
+    def _get_train_sub_groups(self):
+        """Helper to get patient IDs for train-sub."""
+        return self.df.loc[self.train_idx].iloc[self.train_sub_idx]['patient_id']
+    
+    
 
-        # Iterate through the classifiers
-        for name, clf in classifiers.items():
-            print(f"[INFO] - LINE 183 - classifier.py - Training {name} classifier")
-            # Pass the training values to the initialized objects, which then fits the models
-            model = clf.fit(X_train, Y_train)
-
-            # Save the created model
-            trained_models[name] = model
-
-            # Evaluate the model on the test set and store the results
-            # The evaluate_model function returns a DataFrame with predictions and accuracy
-            result_df = self._evaluate_model(model, X_test, Y_test, name, group_name)
-
-            # Combine the results into one DataFrame
-            if combined_results_df is None:
-                combined_results_df = result_df
-            else:
-                result_df = result_df.drop(columns=["filename", "truth_label"])
-                combined_results_df = combined_results_df.join(result_df)
-
-        # Add disagreement column to the combined results DataFrame
-        pred_cols = [f"{name}_pred" for name in trained_models.keys()]
-        combined_results_df[f"disagreement_{group_name}"] = (combined_results_df[pred_cols].nunique(axis=1) > 1).astype(int)
-
-        return trained_models, combined_results_df
-
-    def _level1(self) -> pd.DataFrame:
-        """
-            Trains and evaluates the Level 1 classifier on the binary labels.
-            The trained models are stored in self.trained_models["level1"].
-            The predictions and accuracy are stored in results
-        """
-        print("[INFO] - classifier.py - LINE 213 - Training Level 1 classifier in progress")
-        # Get the models and results from _train_and_evaluatec
-        models, results_df = self._train_and_evaluate_classifiers(
-            self.classifiers_level1,
-            self.X_train,
-            self.Y_train_binary,
-            self.X_test,
-            self.Y_test_binary,
-            group_name="level1"
+    def hyperparameter_tuning(self, param_grids, cv_splits: int = 5, scoring: str = "roc_auc") -> None:
+        
+        for name, pipeline in self.classifiers.items():
+            if name not in param_grids:
+                print(f"[WARNING] No parameter grid for {name}. Skipping.")
+                continue
+        
+        print(f"[INFO] - classifier.py - Line 165 - Starting hyperparameter tuning for {name}")
+        cv = StratifiedGroupKFold(n_splits=cv_splits, shuffle=True, random_state=self.random_state)
+        grid = GridSearchCV(
+            pipeline,
+            param_grid=param_grids[name],
+            cv=cv.split(self.X_train_sub, self.y_train_sub, groups=self._get_train_sub_groups()),
+            scoring=scoring,
+            n_jobs=-1,
+            verbose=1
         )
-
-        # Save the models
-        self.trained_models["level1"] = models
-        # Return the results
-        return results_df
-
-    def _level2(self, group: str) -> pd.DataFrame:
+        grid.fit(self.X_train_sub, self.y_train_sub)
+        self.trained_models[f"{name}"] = grid.best_estimator_
+        print(f"[INFO] - classifier.py - Line 177 - Best parameters for {name}: {grid.best_params_}")
+        print(f"[INFO] - classifier.py - Line 178 - Best {scoring} score: {grid.best_score_:.4f}")
+        
+    def optimize_thresholds(self, scoring: str = 'f1') -> None:
         """
-            Trains and evaluates the Level 2 classifier on the categorical labels
-            The trained models are stored in self.trained_models["level2_cancer/non_cancer"].
-            The predictions and accuracy are stored in results
+        Optimize the classification thresholds for each trained model using TunedThresholdClassifierCV.
+        This method assumes that the models have been trained and are available in self.trained_models.
         """
-        print(f"[INFO] - classifier.py - LINE 235 - Training Level 2 classifier in progress for group '{group}'")
+        for name, model in self.trained_models.items():
+            print(f"[INFO] Optimizing threshold for {name}.")
+            tuner = TunedThresholdClassifierCV(
+                estimator=model, 
+                scoring=scoring,
+                cv="prefit",
+                n_jobs=-1,
+                refit=False # Use prefit models
+                )
+            tuner.fit(self.X_val, self.y_val)
+            self.trained_models[name] = tuner
+            self.best_thresholds[name] = tuner.best_threshold_
+            print(f"[INFO] - classifier.py - Line 215 - Best threshold for {name}: {tuner.best_threshold_:.4f}")
+            print(f"[INFO] - classifier.py - Line 216 - Best {scoring} score: {tuner.best_score_:.4f}")
+            print(f"[INFO] - classifier.py - Line 217 - Best parameters: {tuner.get_params()}")
 
-        # Makes masks and chooses the right classifiers depending on which group we run it on(cancer/non-cancer)
-        if group == "cancer":
-            # Create filter for cancer samples
-            mask_train = self.Y_train_binary == True
-            mask_test = self.Y_test_binary == True
-            classifiers = self.classifiers_level2_cancer
-        else:
-            # Create filter for non-cancer samples
-            mask_train = self.Y_train_binary == False
-            mask_test = self.Y_test_binary == False
-            classifiers = self.classifiers_level2_non_cancer
 
-        # Filters out cancer/non-cancer training and testing sets
-        X_train_subset = self.X_train[mask_train]
-        X_test_subset = self.X_test[mask_test]
-        Y_train_subset = self.Y_train_categorical[mask_train]
-        Y_test_subset = self.Y_test_categorical[mask_test]
-
-        # Get the models and results from _train_and_evaluatec
-        models, results_df = self._train_and_evaluate_classifiers(
-            classifiers,
-            X_train_subset,
-            Y_train_subset,
-            X_test_subset,
-            Y_test_subset,
-            group_name=f"level2_{group}"
-        )
-        # Save the models
-        self.trained_models[f"level2_{group}"] = models
-        # Return the results
-        return results_df
-
-    def _run(self) -> dict[str, pd.DataFrame]:
+    def evaluate_classifiers(self) -> None:
         """
-            Runs the training and evaluation process on both levels.
-            The results are stored in self.results.
-            This method is only called internally and is not meant to be called outside of the class.
+        Evaluate the trained classifier with optional thresholds on the test set and store the results.
+        If the classifier is not trained, it raises an error.
         """
-        print("[INFO] - classifier.py - LINE 275 - Hierarchical classifier is running")
-        # Initialize a dictionary to store the results for each level
-        combined_results = {}
-
-        # First, we train the Level 1 classifier, so only for binary label
-        combined_results["level1"] =  self._level1()
-
-        # Then, we train the Level 2 classifier for both cancer and non-cancer labels
-        combined_results["level2_cancer"] = self._level2("cancer")
-        combined_results["level2_non_cancer"] = self._level2("non_cancer")
-
-        return combined_results
-
-    def _save_results(self) -> None:
-        """
-            Saves the results to a CSV file if an output path is provided.
-        """
-        if self.output_path:
-            print("[INFO] - classifier.py - LINE 293 - Saving results to CSV files")
-            # Save the DataFrame to CSV files
-            for group, results in self.results.items():
-                # Save each group's results to a separate CSV file
-                group_output_path = os.path.join(self.output_path, f"results_{group}.csv")
-                results.to_csv(group_output_path, index=False)
-                print(f"[INFO] - classifier.py - LINE 299 - Model results for {group} saved to {group_output_path}")
-
-    def save_config(self) -> None:
-        """
-            Saves the classifier configuration, parameters and dataset stats to a JSON file
-        """
-        # Helper function to extract fitted parameters from a classifier
-        def extract_fitted_params(clf):
-            """Extracts fitted parameters from a classifier"""
-            extracted_params = {}
-            # Check if the classifier has the specified common attributes and add them to the dictionary
-            if hasattr(clf, "get_params"):
-                extracted_params["get_params"] = clf.get_params()
-            if hasattr(clf, "n_features_in_"):
-                extracted_params["n_features_in_"] = clf.n_features_in_
-            if hasattr(clf, "classes_"):
-                extracted_params["classes_"] = clf.classes_.tolist()
-            if hasattr(clf,"coef_"):
-                extracted_params["coef_"] = clf.coef_.tolist()
-            if hasattr(clf,"intercept_"):
-                extracted_params["intercept_"] = clf.intercept_.tolist()
-            if hasattr(clf,"feature_importances_"):
-                extracted_params["feature_importances_"] = clf.feature_importances_.tolist()
+        
+        self.final_probabilities = pd.DataFrame({
+            'filename': self.df.loc[self.X_test.index, 'filename'],
+            'y_true': self.y_test
+        })
+        
+        for name, model in self.trained_models.items():
+            print( f"[INFO] - classifier.py - Line 220 - Evaluating classifier: {name}")    
             
-            # Model specific attributes
-            return extracted_params
-        
-        # Build the configuration dictionary
-        config = {
-            "timestamp": datetime.now().isoformat(),
-            "dataset_stats": {
-                "num_samples": len(self.df),
-                "num_features": len(self.feature_names),
-                "training_samples": len(self.X_train),
-                "testing_samples": len(self.X_test),
-            },
-            "base_dir": str(self.base_dir),
-            "feature_names": self.feature_names,
-            "test_size": self.test_size,
-            "random_state": self.random_state,
-            "classification_reports": { name: { atr: value for atr, value in report.items()} for name, report in self.reports.items()},
-            "classifiers_level1": {
-                name: extract_fitted_params(clf) for name, clf in self.classifiers_level1.items()
-            },
-            "classifiers_level_level2_cancer": {
-                name: extract_fitted_params(clf) for name, clf in self.classifiers_level2_cancer.items()
-            },
-            "classifiers_level_level2_non_cancer": {
-                name: extract_fitted_params(clf) for name, clf in self.classifiers_level2_non_cancer.items()
+            y_pred = model.predict(self.X_test)
+            y_proba = np.round(model.predict_proba(self.X_test)[:, 1], 3)
+            
+            self.final_probabilities[f"{name}_y_pred"] = y_pred
+            self.final_probabilities[f"{name}_y_proba"] = y_proba
+            
+            self.final_results[name] = {
+                'accuracy': accuracy_score(self.y_test, y_pred),
+                'precision': precision_score(self.y_test, y_pred),
+                'recall': recall_score(self.y_test, y_pred),
+                'f1': f1_score(self.y_test, y_pred),
+                'roc_auc': roc_auc_score(self.y_test, y_proba),
+                'threshold': self.best_thresholds.get(name, 0.5),
+                "roc_auc": roc_auc_score(self.y_test, y_proba)
             }
-        }
+           
+           
+            print("[INFO] - classifier.py - Line 245 - Evaluation results for", name)
+            print(classification_report(self.y_test, y_pred))
+            
+            
+        assert all(self.final_probabilities['y_true'] == self.y_test.loc[self.X_test.index].values)
+        # Save the final results to a CSV file
+        self._save_final_results_probabilities()
         
-        # save the config to a JSON file
-        config_path = os.path.join(self.output_path, "classifier_config.json")
-        with open(config_path, "w") as f:
-            json.dump(config, f, indent=4)
-
-        print(f"[INFO] - classifier.py LINE 356 - Classifier configuration saved to {config_path}")
-
-    def tune_hyperparameters(self, level: str, model_name: str, param_grid: dict) -> None:
+        
+        
+    
+    def _save_final_results_probabilities(self) -> None:
         """
-            Hyperparameter tuning for a specific model using GridSearchCV.
+        This method saves the final probabilities to a CSV file and the evaluation results to a JSON file.
         """
-        if level == "level1":
-            models = self.classifiers_level1
-        elif level == "level2_cancer":
-            models = self.classifiers_level2_cancer
-        elif level == "level2_non_cancer":
-            models = self.classifiers_level2_non_cancer
-        # Check if the model name is valid
-        if model_name not in models:
-            raise ValueError(f"[ERROR] - classifier.py - LINE 370 - Model '{model_name}' not found in the specified level '{level}'")
+        output_file = os.path.join(self.output_path, "final_probabilities.csv")
+        self.final_probabilities.to_csv(output_file, index=False)
+        print(f"[INFO] - classifier.py - Line 267 - Final probabilities saved to {output_file}")
         
-        # Get the model
-        model = models[model_name]
-        
-        # Perform hyperparameter tuning using GridSearchCV
-        grid_search = GridSearchCV(estimator=model, param_grid=param_grid, cv=5, n_jobs=-1, verbose=1)
-        if level == "level1":
-            # Use the training data for level 1
-            grid_search.fit(self.X_train, self.Y_train_binary)
-        elif level == "level2_cancer":
-            # Use the training data for level 2 cancer
-            mask_train = self.Y_train_binary == True
-            X_train_subset = self.X_train[mask_train]
-            Y_train_subset = self.Y_train_categorical[mask_train]
-            grid_search.fit(X_train_subset, Y_train_subset)
-        elif level == "level2_non_cancer":
-            # Use the training data for level 2 non-cancer
-            mask_train = self.Y_train_binary == False
-            X_train_subset = self.X_train[mask_train]
-            Y_train_subset = self.Y_train_categorical[mask_train]
-            grid_search.fit(X_train_subset, Y_train_subset)
-
-        # Save the best parameters
-        best_params = grid_search.best_params_
-        # Save the best model
-        best_model = grid_search.best_estimator_
-        self.trained_models[level][model_name] = best_model
-
-        # Print the best parameters
-        print(f"[INFO] - classifier.py - LINE 400 - Best parameters for {model_name}: {grid_search.best_params_}")
-        y_pred = best_model.predict(self.X_test)
-        print(f"[INFO] - classifier.py - LINE 402 - Accuracy: {accuracy_score(self.Y_test_binary, y_pred)}")
+        # Save the final results of the classifier evaluations to a JSON file
+        output_file = os.path.join(self.output_path, "final_results.json")
+        with open(output_file, 'w') as f:
+            json.dump(self.final_results, f, indent=4, default=str)
+        print(f"[INFO] - classifier.py - Line 274 - Final results saved to {output_file}")
+            
