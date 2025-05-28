@@ -35,28 +35,25 @@ def measure_streaks(record: 'Record') -> float:
 
     gray = record.image_data.get("grayscale_img")
 
-
-    blurred = record.image_data.get("blurred_img")
-    lesion_mask = record.image_data.get("lesion_mask")
+    lesion_mask = record.image_data.get("original_mask")
 
     # Get largest contour
     contours, _ = cv2.findContours(lesion_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
     if not contours:
         return 0.0
     lesion_contour = max(contours, key=cv2.contourArea)
     lesion_area = cv2.contourArea(lesion_contour)
-
+    
+    lesion_area = np.sum(lesion_mask > 0)
     if lesion_area < 10:  # Too small to analyze
+        print("-----------------------------------------------------Lesion area too small to analyze:", lesion_area)
         return 0.0
-
-    # Create filled lesion mask
-    lesion_mask_filled = np.zeros_like(gray)
-    cv2.drawContours(lesion_mask_filled, [lesion_contour], -1, 255, thickness=cv2.FILLED)
 
     # Create border ring
     kernel = np.ones((15, 15), np.uint8)
-    dilated = cv2.dilate(lesion_mask_filled, kernel, iterations=1)
-    border_ring = cv2.subtract(dilated, lesion_mask_filled)
+    dilated = cv2.dilate(lesion_mask, kernel, iterations=1)
+    border_ring = cv2.subtract(dilated, lesion_mask)
 
     # Apply Frangi filter to enhance line-like structures
     norm_gray = gray / 255.0
