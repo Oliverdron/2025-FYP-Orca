@@ -5,6 +5,7 @@ from util import (
     np,
     os,
     pd,
+    np,
     plt,
     StratifiedGroupKFold,
     BaseEstimator,
@@ -13,6 +14,8 @@ from util import (
     StandardScaler,
     TunedThresholdClassifierCV,
     Pipeline,
+    PCA,
+    DecisionBoundaryDisplay,
     accuracy_score,
     roc_curve,
     auc,
@@ -59,7 +62,7 @@ class Classifier:
         self.X = self.df[self.feature_names]
         self.y = self.df['label_binary']
         groups = self.df['patient_id']
-        
+        print(self.X)
         # 1. Initial split: Train (80%) + Test (20%)
         # n_splits=5 equals approximately 80% train and 20% test split
         sgkf_test = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=self.random_state)
@@ -138,6 +141,7 @@ class Classifier:
                 n_jobs=-1,
                 verbose=1
             )
+            
             grid.fit(self.X_train_sub, self.y_train_sub)
             self.trained_models[f"{name}"] = grid.best_estimator_
             
@@ -153,7 +157,20 @@ class Classifier:
             tuning_probabilities[f"{name}_y_pred"] = y_val_pred
             tuning_probabilities[f"{name}_y_proba"] = y_val_proba
             
-            
+            # Plot ROC curve for hyperparameter tuning
+            fpr, tpr, _ = roc_curve(self.y_val, y_val_proba)
+            roc_auc = auc(fpr, tpr)
+            plt.figure(figsize=(8, 6))
+            plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'{name} (AUC = {roc_auc:.2f})')
+            plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+            plt.xlim([0.0, 1.0])
+            plt.ylim([0.0, 1.05])
+            plt.xlabel('False Positive Rate')
+            plt.ylabel('True Positive Rate')
+            plt.title('Receiver Operating Characteristic (ROC) Curve')
+            plt.legend(loc='lower right')
+            plt.show()
+            self._visualize(grid.best_estimator_, self.X_train_sub, self.y_train_sub, self.X_val, self.y_val)
             
         self._save_results_probabilities(tuning_results, tuning_probabilities, "tuning")
         
@@ -168,6 +185,48 @@ class Classifier:
         results_df = pd.DataFrame(grid.cv_results_)
         results_df.to_csv(output_file, index=False)
         print(f"[INFO] - classifier.py - Line 180 - Grid search results for {name} saved to {output_file}")
+
+    def _visualize(self, model: BaseEstimator, X: pd.DataFrame, y: pd.Series, X_val: pd.DataFrame, y_val: pd.DataFrame) -> None:
+        """ Visualize multiple things:
+        -  Decision boundary of the model using PCA
+        """ 
+        print(f"[INFO] - classifier.py - Line 190 - Visualizing model: {model.__class__.__name__}")
+        print("X shape:", X.shape)
+        print("y shape:", y.shape)
+        if X.shape[1] > 2:
+            pca = PCA(n_components=2)
+            X = pca.fit_transform(X)
+            X_val = pca.transform(X_val)
+            
+        scaler = StandardScaler()
+        X = scaler.fit_transform(X)
+        X_val = scaler.transform(X_val)
+        print("X shape:", X.shape)
+        print("y shape:", y.shape)
+        
+        # mesh grid
+        xx, yy = np.meshgrid(
+            np.linspace(X[:, 0].min(), X[:, 0].max()),
+            np.linspace(X[:, 1].min(), X[:, 1].max())
+        )
+        
+        grid_points = np.c_[xx.ravel(), yy.ravel()]
+        
+        y_pred = model.predict(grid_points)
+        y_pred = np.reshape(y_pred, xx.shape)
+        
+        display_train = DecisionBoundaryDisplay(
+            xx0 = xx,
+            xx1 = yy,
+            response = y_pred
+        )
+        display_train.plot()
+        plt.show()
+            
+        
+        
+        
+
 
     def optimize_thresholds(self, scoring: str = 'f1') -> None:
         """
@@ -214,20 +273,7 @@ class Classifier:
             plt.title(f'Precision-Recall vs Threshold for {name}')
             plt.legend(loc='best')
             plt.show()
-            
-            # Plot ROC curve for hyperparameter tuning
-            fpr, tpr, _ = roc_curve(self.y_val, y_val_proba)
-            roc_auc = auc(fpr, tpr)
-            plt.figure(figsize=(8, 6))
-            plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'{name} (AUC = {roc_auc:.2f})')
-            plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
-            plt.xlim([0.0, 1.0])
-            plt.ylim([0.0, 1.05])
-            plt.xlabel('False Positive Rate')
-            plt.ylabel('True Positive Rate')
-            plt.title('Receiver Operating Characteristic (ROC) Curve')
-            plt.legend(loc='lower right')
-            plt.show()
+        
             
             
             

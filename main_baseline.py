@@ -1,72 +1,60 @@
-# pull in the main functions from each of the features and iterate through them 
-# to create a baseline model
-# Feature A : mean_asymmetry()
-
-# Pseudocode: Read File, Check with Masks, incorporate features - 
-
-import os
-import cv2
-import numpy as np
-import pandas as pd
-from util.feature_A import mean_asymmetry
-from util.feature_A import rotation_asymmetry
-from util.feature_A import asymmetry
-from util.feature_A import cut_mask
-from util.feature_A import find_midpoint_v1
-
-from util.feature_D import get_glcm_feature
-from pathlib import Path
-
-# Your previously defined functions: mean_asymmetry, rotation_asymmetry, asymmetry, cut_mask, find_midpoint_v1
-# Make sure they are included above this block
-
-def feat_d_extraction(data_path, dataset_path):
-    df = pd.read_csv(dataset_path)
-    feature_d = []
-    i = 1
-    for img_rel_path, mask_rel_path in zip(df["image_path"], df["image_mask_path"]):
-        if not pd.isna(mask_rel_path):
-            img_path = data_path / "images" / img_rel_path
-            mask_path = data_path / "lesion_masks" / mask_rel_path
-            feature_d.append(get_glcm_feature(img_path, mask_path))
-        else:
-            feature_d.append("NA")
-        # progress
-        print(f"{i}/{len(df["image_path"])}")
-        i += 1
-    df["feature_D"] = feature_d
-    df.to_csv("dataset.csv")
-        
-
-def load_binary_mask(filepath):
-    """Loads an image as a binary mask."""
-    img = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
-    _, binary = cv2.threshold(img, 127, 1, cv2.THRESH_BINARY)
-    return binary.astype(bool)
-
-def process_masks_in_folder(folder_path, rotations=30):
-    results = {}
-
-    for filename in os.listdir(folder_path):
-        if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tif', '.tiff')):
-            path = os.path.join(folder_path, filename)
-            mask = load_binary_mask(path)
-            
-            try:
-                score = round(mean_asymmetry(mask, rotations=rotations), 4)
-                results[filename] = score
-                print(f"{filename}: {score}")
-            except Exception as e:
-                print(f"Failed to process {filename}: {e}")
-                results[filename] = None
-
-    return results
-
-project_root = Path(__file__).parent
-masks_path = project_root / "data" / "lesion_masks"
-data_path = project_root / "data"
-asymmetry_results = process_masks_in_folder(masks_path)
-print(asymmetry_results)
+""" Main script for running baseline experiments with selected basic classifiers and  A, B, C features.
+    """
 
 
-feat_d_extraction(data_path, "dataset.csv")
+
+from util import (
+    Path, pd, os, np,
+    Classifier,
+    Dataset,
+    get_base_dir,
+    ALL_CLASSIFIERS,
+    ALL_FEATURES,
+    ALL_PARAM_GRIDS,
+)
+
+# ── Feature extraction ────────────────────────────────────────────────────
+SELECTED_FEATURES = ["feat_A", "feat_B", "feat_C"]  # Choose a subset by name
+FEATURES = {k: ALL_FEATURES[k] for k in SELECTED_FEATURES}
+
+
+# ── Classifiers ──────────────────────────────────────────────────────────────
+SELECTED_CLASSIFIERS = ["mlp","lr"] # Choose a subset by name
+CLASSIFIERS = {k: ALL_CLASSIFIERS[k] for k in SELECTED_CLASSIFIERS}
+
+
+
+# ── Hyperparameter grids ───────────────────────────────────────────────────
+PARAM_GRIDS = {k: ALL_PARAM_GRIDS[k] for k in SELECTED_CLASSIFIERS}
+
+
+
+def main():
+    # 1) Retrieve the absolute path to the directory containing this script
+    base = get_base_dir(Path(__file__))
+    
+    # 2) Set up result output path
+    output_path = base / "result"
+    
+    # 3) Build Dataset so we can train/evaluate/test our model directly (this also calls Record.load() for each image)
+    # This should only run if the dataset.csv file does not exist yet, as the dataset.csv file should contain the extracted feature values
+    if not os.path.exists(os.path.join(base, "dataset.csv")):
+        print("[INFO] - main_demo.py - Dataset not found, creating new one")
+        ds = Dataset(feature_extractors=FEATURES, base_dir=base)
+
+    # 4) Pass the Dataset to the classifier model for training and evaluation
+    clf = Classifier(
+        base,
+        list(FEATURES.keys()),
+        CLASSIFIERS,
+        test_size=0.2,
+        random_state=42,
+        output_path=output_path
+    )
+    clf.load_split_data()
+    clf.hyperparameter_tuning(PARAM_GRIDS, scoring="roc_auc")  
+    clf.optimize_thresholds(scoring="roc_auc")  
+    
+    
+if __name__ == "__main__":
+    main()
