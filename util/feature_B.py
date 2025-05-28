@@ -72,7 +72,11 @@ def border_irregularity(record: 'Record', k_blobs: int = 3) -> float:
         # ConvexHull finds the smallest convex polygon that encloses all of the points
         # Identifies the subset of points that lie on the convex hull, sorts them in counter-clockwise order, then defines line segments between successive hull vertices
         # Finally returns a polygon and we are using ".volume" to access its area
-        convex_hull = ConvexHull(coords).volume
+        try:
+            convex_hull = ConvexHull(coords).volume
+        except:
+            # If ConvexHull fails (e.g., due to degenerate geometry), skip this blob
+            continue
         
         # Fall back, to avoid division by zero in any case
         if convex_hull <= 0:

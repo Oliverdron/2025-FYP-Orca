@@ -47,9 +47,7 @@ class Record:
             "threshold_segm_mask": None # Binary mask for lesion segmentation
         }
 
-        self.features = {
-            "hair_label": None # Indicates how much hair there is on the original image
-        }
+        self.features = {}
 
     def load(self) -> None:
         # Load the image and possibly its original mask using the parent class's readImageFile method
@@ -121,13 +119,13 @@ class Dataset:
             t1 = time.perf_counter()
             elapsed = t1 - t0
             print(f"    [INFO] - img_util.py - Record {rec.meta_data["image_fname"]!r} took {elapsed:.4f}s to load")
-            
-            # Before any extraction, apply image pre-processing method
-            # It won't return anything, rather it'll use the rec.image_data dictionary to save different phases of pre-processing/modified images
-            PreProcessor(rec)
 
             # Extract features using the provided feature extractors
             if rec.image_data["original_mask"] is not None:
+                # Before any extraction, apply image pre-processing method
+                # It won't return anything, rather it'll use the rec.image_data dictionary to save different phases of pre-processing/modified images
+                PreProcessor(rec)
+
                 for feat_name, func in feature_extractors.items():
                     # For simplicity, passing the Record instance to each feature extractor function to avoid confusion regarding the input
                     t0 = time.perf_counter()
@@ -137,19 +135,19 @@ class Dataset:
                     print(f"    [INFO] - img_util.py - Feature {feat_name!r} took {elapsed:.4f}s, value={value}")
                     rec.set_feature(f"{feat_name}", value)
                 
-            # Append the Record instance to the records list
-            self.records.append(rec)
-            print(f"[INFO] - img_util.py - Current number of images: {len(self.records)}")
-            if limit:
-                # Since we have a limit, it is a test-case, so save all information of a Record (including images)
-                self.export_record(rec, "dataset.csv", True)
-                
-                if len(self.records) >= limit:
-                    print(f"[INFO] - img_util.py - Reached the limit of {limit} records for testing.")                  
-                    break
-            else:
-                # Call the export_record method to save the Record instance's data to a CSV file
-                self.export_record(rec, "dataset.csv")
+                # Append the Record instance to the records list
+                self.records.append(rec)
+                print(f"[INFO] - img_util.py - Current number of images: {len(self.records)}")
+                if limit:
+                    # Since we have a limit, it is a test-case, so save all information of a Record (including images)
+                    self.export_record(rec, "dataset.csv", True)
+                    
+                    if len(self.records) >= limit:
+                        print(f"[INFO] - img_util.py - Reached the limit of {limit} records for testing.")                  
+                        break
+                else:
+                    # Call the export_record method to save the Record instance's data to a CSV file
+                    self.export_record(rec, "dataset.csv")
 
     def readImageFile(self, file_path: str, mask_path: str = None) -> tuple:
         """

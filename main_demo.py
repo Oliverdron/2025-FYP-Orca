@@ -9,7 +9,7 @@ from util import (
 )
 
 # ── Feature extraction ────────────────────────────────────────────────────
-SELECTED_FEATURES = ["feat_B"]  # Choose a subset by name
+SELECTED_FEATURES = ["feat_A", "feat_B", "feat_C", "feat_D", "feat_E", "feat_F"]  # Choose a subset by name
 FEATURES = {k: ALL_FEATURES[k] for k in SELECTED_FEATURES}
 
 
@@ -38,7 +38,7 @@ def main():
     # ------- FOR TESTING -------
     #if not os.path.exists(os.path.join(base, "dataset.csv")):
     #    print("[INFO] - main_demo.py - Dataset not found, creating new one")
-    ds = Dataset(feature_extractors=FEATURES, base_dir=base, shuffle=True, limit=5)
+    ds = Dataset(feature_extractors=FEATURES, base_dir=base)
     # Later on 'record.image_data["threshold_segm_mask"]' should never be None
     # But now is, which will lead to a 'NoneType' attribute access error
     # ---------------------------
