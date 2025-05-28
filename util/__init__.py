@@ -89,9 +89,9 @@ from util.feature_D import hair_feat_extraction as extract_feature_D
 
 # Feature map
 ALL_FEATURES = {
-    #"feat_A": extract_feature_A,
+    "feat_A": extract_feature_A,
     "feat_B": extract_feature_B,
-    #"feat_C": extract_feature_C,
+    "feat_C": extract_feature_C,
     #"feat_D": hair_extraction,
     #"feat_D": extract_feature_D, 
     # ALSO IMPORT EXTENDED FEATURES IN EXTENDED.py LATER!!!

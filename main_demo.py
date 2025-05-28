@@ -24,82 +24,6 @@ PARAM_GRIDS = {k: ALL_PARAM_GRIDS[k] for k in SELECTED_CLASSIFIERS}
 
 
 
-    LogisticRegression,
-    GradientBoostingClassifier,
-    RandomForestClassifier,
-    KNeighborsClassifier,
-    SVC,
-    MLPClassifier,
-    RFE,
-    plt,
-    Pipeline,
-    StandardScaler
-)
-
-FEATURE_MAP = {
-    "feat_A": extract_feature_A,
-    "feat_B": extract_feature_B,
-    "feat_C": extract_feature_C,
-    #"feat_D": hair_extraction,
-    #"feat_D": extract_feature_D, 
-    # ALSO IMPORT EXTENDED FEATURES IN EXTENDED.py LATER!!!
-}
-
-# Set classifiers according to discussion with the team. Using Pipelines for clear and consistent preprocessing and model training. 
-# Data leakage is avoided by using StandardScaler within the Pipeline, ensuring that scaling is applied only to the training data during cross-validation.
-ALL_CLASSIFIERS = {
-    "lr": Pipeline([
-        ("scaler", StandardScaler()),
-        ("clf", LogisticRegression(max_iter=1000, random_state=42, class_weight="balanced"))
-    ]),
-    "rf": Pipeline([
-        ("scaler", StandardScaler()),
-        ("clf", RandomForestClassifier(n_jobs=-1, random_state=42))
-    ]), 
-    "mlp": Pipeline([
-        ("scaler", StandardScaler()),
-        ("clf", MLPClassifier(early_stopping=True, random_state=42))
-    ]),
-    "knn": Pipeline([
-        ("scaler", StandardScaler()),
-        ("clf", KNeighborsClassifier(n_jobs=-1))
-    ]),
-    "svc": Pipeline([
-        ("scaler", StandardScaler()),
-        ("clf", SVC(kernel='linear', random_state=42, verbose=0))
-    ]),
-    "gb": Pipeline([
-        ("scaler", StandardScaler()),
-        ("clf", GradientBoostingClassifier(random_state=42, verbose=0))
-    ]), 
-   
-}
-
-# Choose a subset by name
-SELECTED = ["mlp","lr"]
-CLASSIFIERS = {k: ALL_CLASSIFIERS[k] for k in SELECTED}
-
-PARAM_GRIDS = {
-    "mlp": 
-    {
-    'clf__hidden_layer_sizes': [(64,), (128,), (64, 32), (128, 64)],
-    'clf__activation': ['relu', 'tanh'],
-    'clf__alpha': [0.0001, 0.001, 0.01],
-    'clf__learning_rate_init': [0.001, 0.0001],
-    'clf__batch_size': [32, 64]
-    },
-    "lr" :
-    {
-    'clf__C': np.logspace(-3, 3, 7),         
-    'clf__l1_ratio': [0, 0.15, 0.5, 0.85, 1]    
-    }
-}
-
-def get_base_dir() -> Path:
-    """
-        Returns the absolute Path to the directory containing this script
-    """
-    return Path(__file__).parent.resolve()
 
 def main():
     # 1) Retrieve the absolute path to the directory containing this script
@@ -114,8 +38,7 @@ def main():
     # ------- FOR TESTING -------
     #if not os.path.exists(os.path.join(base, "dataset.csv")):
     #    print("[INFO] - main_demo.py - Dataset not found, creating new one")
-    ds = Dataset(feature_extractors=FEATURES, base_dir=base, shuffle=True, limit=10)
-    ds = Dataset(feature_extractors=FEATURE_MAP, base_dir=base, shuffle=False, limit=5)
+    ds = Dataset(feature_extractors=FEATURES, base_dir=base, shuffle=True, limit=5)
     # Later on 'record.image_data["threshold_segm_mask"]' should never be None
     # But now is, which will lead to a 'NoneType' attribute access error
     # ---------------------------
