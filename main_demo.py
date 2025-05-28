@@ -20,9 +20,9 @@ from util import (
 )
 
 FEATURE_MAP = {
-    #"feat_A": extract_feature_A,
+    "feat_A": extract_feature_A,
     "feat_B": extract_feature_B,
-    #"feat_C": extract_feature_C,
+    "feat_C": extract_feature_C,
     #"feat_D": hair_extraction,
     #"feat_D": extract_feature_D, 
     # ALSO IMPORT EXTENDED FEATURES IN EXTENDED.py LATER!!!
@@ -97,7 +97,7 @@ def main():
     # ------- FOR TESTING -------
     #if not os.path.exists(os.path.join(base, "dataset.csv")):
     #    print("[INFO] - main_demo.py - Dataset not found, creating new one")
-    # ds = Dataset(feature_extractors=FEATURE_MAP, base_dir=base, shuffle=True, limit=25)
+    ds = Dataset(feature_extractors=FEATURE_MAP, base_dir=base, shuffle=False, limit=5)
     # Later on 'record.image_data["threshold_segm_mask"]' should never be None
     # But now is, which will lead to a 'NoneType' attribute access error
     # ---------------------------

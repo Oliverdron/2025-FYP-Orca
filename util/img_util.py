@@ -127,24 +127,26 @@ class Dataset:
             PreProcessor(rec)
 
             # Extract features using the provided feature extractors
-            for feat_name, func in feature_extractors.items():
-                # For simplicity, passing the Record instance to each feature extractor function to avoid confusion regarding the input
-                t0 = time.perf_counter()
-                value = func(rec)
-                t1 = time.perf_counter()
-                elapsed = t1 - t0
-                print(f"    [INFO] - img_util.py - Feature {feat_name!r} took {elapsed:.4f}s, value={value}")
-                rec.set_feature(f"{feat_name}", value)
-            
+            if rec.image_data["original_mask"] is not None:
+                for feat_name, func in feature_extractors.items():
+                    # For simplicity, passing the Record instance to each feature extractor function to avoid confusion regarding the input
+                    t0 = time.perf_counter()
+                    value = func(rec)
+                    t1 = time.perf_counter()
+                    elapsed = t1 - t0
+                    print(f"    [INFO] - img_util.py - Feature {feat_name!r} took {elapsed:.4f}s, value={value}")
+                    rec.set_feature(f"{feat_name}", value)
+                
             # Append the Record instance to the records list
             self.records.append(rec)
             print(f"[INFO] - img_util.py - Current number of images: {len(self.records)}")
             if limit:
-                if len(self.records) >= limit:
-                    print(f"[INFO] - img_util.py - Reached the limit of {limit} records for testing.")
-                    break
                 # Since we have a limit, it is a test-case, so save all information of a Record (including images)
                 self.export_record(rec, "dataset.csv", True)
+                
+                if len(self.records) >= limit:
+                    print(f"[INFO] - img_util.py - Reached the limit of {limit} records for testing.")                  
+                    break
             else:
                 # Call the export_record method to save the Record instance's data to a CSV file
                 self.export_record(rec, "dataset.csv")

@@ -45,7 +45,7 @@ class PreProcessor:
         original_img = record.image_data["original_img"]
 
         # Step 1: Apply Bilateral Denoising
-        print("    [INFO] - img_preprocess_util.py - SSIM below threshold, applying 'Bilateral denoising'")
+        print("    [INFO] - img_preprocess_util.py - Applying 'Bilateral denoising'")
         denoised_image = self.bilateral_denoising(original_img)
         record.image_data['denoised_image'] = denoised_image
         
@@ -80,7 +80,7 @@ class PreProcessor:
         # As Step 4) may enhance the contrast between the hair and the skin, potentially making it easier to detect hair
         # On the downside, it can also introduce artifacts or increase contrast in non-hair regions -> makes it harder to separate hair from other image features
         print("    [INFO] - img_preprocess_util.py - Removing hair with Black-Hat transformation")
-        blackhat_image, thresh_hair, img_out = self.removeHair(enhanced_image, cv2.cvtColor(denoised_image, cv2.COLOR_BGR2GRAY))
+        blackhat_image, thresh_hair, img_out = self.removeHair(denoised_image, cv2.cvtColor(enhanced_image, cv2.COLOR_BGR2GRAY))
         
         # Store the results from hair removal
         record.image_data['blackhat_img'] = blackhat_image
@@ -219,7 +219,7 @@ class PreProcessor:
         return enhanced_image
     
     # Removes hair from the image using morphological filtering and inpainting
-    def removeHair(self, img_org, img_gray, kernel_size=17, threshold=60, radius=1):
+    def removeHair(self, img_org, img_gray, kernel_size=25, threshold=15, radius=5):
         """
         Removes hair from the image using morphological filtering and inpainting.
 

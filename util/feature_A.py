@@ -29,10 +29,8 @@ def asymmetry(record: 'Record', k_blobs: int = 3, n_angles: int = 8) -> float:
         Returns:
             float: mean asymmetry in [0, 1] across the top-k blobs, or np.nan if no blobs are found
     """
-    # Preferably use the provided mask for feature extraction as it is better quality
-    bin_mask = record.image_data["original_mask"] if record.image_data["original_mask"] is not None else record.image_data["threshold_segm_mask"]
     # Thresh image contains either 0 or 255 values, so we need to convert it to boolean for easier processing
-    bin_mask = bin_mask.astype(bool)
+    bin_mask = record.image_data["original_mask"].astype(bool)
     
     # The label function returns a labeled array where each True component has a unique id
     labeled = label(bin_mask.astype(int))

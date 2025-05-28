@@ -1,4 +1,6 @@
 patient_id,image_path,mask_path,label
+test,test_image.png,test_image_mask.png,ACK
+test,test_image_2.png,test_image_mask_2.png,BCC
 PAT_1516,PAT_1516_1765_530.png,PAT_1516_1765_530_mask.png,NEV
 PAT_46,PAT_46_881_939.png,PAT_46_881_939_mask.png,BCC
 PAT_1545,PAT_1545_1867_547.png,PAT_1545_1867_547_mask.png,ACK
