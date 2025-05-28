@@ -32,7 +32,6 @@ class Record:
             "image_fname": image_fname.split('.')[0], # The name of the image file in the CSV file (without the extension)
             "extension": image_fname.split('.')[1], # The extension of the file
             "label_binary": True if label in CANCEROUS else False, # The binary label of the image: True if cancerous; False if not
-            "label_category": label, # The categorical label of the image, one of ["BCC","ACK""MEL","SEK","NEV","SEC"]
             "mask_fname": mask_fname, # Filename from CSV or None
         }
 
