@@ -1,12 +1,29 @@
-from util.img_util       import Dataset, Record
-from util.feature_A      import asymmetry           as extract_feature_A
-from util.feature_B      import border_irregularity as extract_feature_B
-from util.feature_C      import color_heterogeneity as extract_feature_C
-from util.feature_D      import hair_feat_extraction as hair_extraction
-from util.classifier     import Classifier
-
 from util import (
     Path, pd, os, np,
+    Classifier,
+    Dataset,
+    get_base_dir,
+    ALL_CLASSIFIERS,
+    ALL_FEATURES,
+    ALL_PARAM_GRIDS,
+)
+
+# ── Feature extraction ────────────────────────────────────────────────────
+SELECTED_FEATURES = ["feat_B"]  # Choose a subset by name
+FEATURES = {k: ALL_FEATURES[k] for k in SELECTED_FEATURES}
+
+
+# ── Classifiers ──────────────────────────────────────────────────────────────
+SELECTED_CLASSIFIERS = ["mlp","lr"] # Choose a subset by name
+CLASSIFIERS = {k: ALL_CLASSIFIERS[k] for k in SELECTED_CLASSIFIERS}
+
+
+
+# ── Hyperparameter grids ───────────────────────────────────────────────────
+PARAM_GRIDS = {k: ALL_PARAM_GRIDS[k] for k in SELECTED_CLASSIFIERS}
+
+
+
     LogisticRegression,
     GradientBoostingClassifier,
     RandomForestClassifier,
@@ -86,7 +103,7 @@ def get_base_dir() -> Path:
 
 def main():
     # 1) Retrieve the absolute path to the directory containing this script
-    base = get_base_dir()
+    base = get_base_dir(Path(__file__))
 
     # 2) Set up result output path
     output_path = base / "result"
@@ -97,6 +114,7 @@ def main():
     # ------- FOR TESTING -------
     #if not os.path.exists(os.path.join(base, "dataset.csv")):
     #    print("[INFO] - main_demo.py - Dataset not found, creating new one")
+    ds = Dataset(feature_extractors=FEATURES, base_dir=base, shuffle=True, limit=10)
     ds = Dataset(feature_extractors=FEATURE_MAP, base_dir=base, shuffle=False, limit=5)
     # Later on 'record.image_data["threshold_segm_mask"]' should never be None
     # But now is, which will lead to a 'NoneType' attribute access error
@@ -114,7 +132,7 @@ def main():
  
     clf = Classifier(
         base,
-        list(FEATURE_MAP.keys()),
+        list(FEATURES.keys()),
         CLASSIFIERS,
         test_size=0.2,
         random_state=42,

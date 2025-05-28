@@ -46,3 +46,78 @@ from sklearn.model_selection import train_test_split, cross_validate
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, precision_score, recall_score, f1_score, roc_auc_score, roc_curve, auc, precision_recall_curve
 from sklearn.pipeline import Pipeline
+from sklearn.decomposition import PCA
+from sklearn.inspection import DecisionBoundaryDisplay
+
+# Classes
+from util.img_util import Dataset, Record
+from util.classifier import Classifier
+
+ALL_CLASSIFIERS = {
+    "lr": Pipeline([
+        ("scaler", StandardScaler()),
+        ("clf", LogisticRegression(max_iter=1000, random_state=42, class_weight="balanced"))
+    ]),
+    "rf": Pipeline([
+        ("scaler", StandardScaler()),
+        ("clf", RandomForestClassifier(n_jobs=-1, random_state=42))
+    ]), 
+    "mlp": Pipeline([
+        ("scaler", StandardScaler()),
+        ("clf", MLPClassifier(early_stopping=True, random_state=42))
+    ]),
+    "knn": Pipeline([
+        ("scaler", StandardScaler()),
+        ("clf", KNeighborsClassifier(n_jobs=-1))
+    ]),
+    "svc": Pipeline([
+        ("scaler", StandardScaler()),
+        ("clf", SVC(kernel='linear', random_state=42, verbose=0))
+    ]),
+    "gb": Pipeline([
+        ("scaler", StandardScaler()),
+        ("clf", GradientBoostingClassifier(random_state=42, verbose=0))
+    ]), 
+   
+}
+
+# Feature extraction
+from util.feature_A import asymmetry as extract_feature_A
+from util.feature_B import border_irregularity as extract_feature_B
+from util.feature_C import color_heterogeneity as extract_feature_C
+from util.feature_D import hair_feat_extraction as extract_feature_D
+
+# Feature map
+ALL_FEATURES = {
+    #"feat_A": extract_feature_A,
+    "feat_B": extract_feature_B,
+    #"feat_C": extract_feature_C,
+    #"feat_D": hair_extraction,
+    #"feat_D": extract_feature_D, 
+    # ALSO IMPORT EXTENDED FEATURES IN EXTENDED.py LATER!!!
+}
+
+
+# Hyperparameter grids for classifiers
+ALL_PARAM_GRIDS = {
+    "mlp": 
+    {
+    'clf__hidden_layer_sizes': [(64,), (128,), (64, 32), (128, 64)],
+    'clf__activation': ['relu', 'tanh'],
+    'clf__alpha': [0.0001, 0.001, 0.01],
+    'clf__learning_rate_init': [0.001, 0.0001],
+    'clf__batch_size': [32, 64]
+    },
+    "lr" :
+    {
+    'clf__C': np.logspace(-3, 3, 7),         
+    'clf__l1_ratio': [0, 0.15, 0.5, 0.85, 1]    
+    }
+}
+
+# Functions
+def get_base_dir(path: Path) -> Path:
+    """
+        Returns the absolute Path to the directory containing this script
+    """
+    return path.parent.resolve()
