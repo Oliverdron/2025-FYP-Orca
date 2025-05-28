@@ -219,7 +219,7 @@ class PreProcessor:
         return enhanced_image
     
     # Removes hair from the image using morphological filtering and inpainting
-    def removeHair(self, img_org, img_gray, kernel_size=25, threshold=15, radius=5):
+    def removeHair(self, img_org, img_gray, kernel_size=25, threshold=20, radius=5):
         """
         Removes hair from the image using morphological filtering and inpainting.
 

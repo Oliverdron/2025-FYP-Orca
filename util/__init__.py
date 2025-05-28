@@ -82,18 +82,21 @@ ALL_CLASSIFIERS = {
 }
 
 # Feature extraction
-from util.feature_A import asymmetry as extract_feature_A
-from util.feature_B import border_irregularity as extract_feature_B
-from util.feature_C import color_heterogeneity as extract_feature_C
+from util.feature_A import asymmetry            as extract_feature_A
+from util.feature_B import border_irregularity  as extract_feature_B
+from util.feature_C import color_heterogeneity  as extract_feature_C
 from util.feature_D import hair_feat_extraction as extract_feature_D
+from util.feature_E import vascular_score       as extract_feature_E
+from util.feature_F import measure_streaks      as extract_feature_F
 
 # Feature map
 ALL_FEATURES = {
     "feat_A": extract_feature_A,
     "feat_B": extract_feature_B,
     "feat_C": extract_feature_C,
-    #"feat_D": hair_extraction,
-    #"feat_D": extract_feature_D, 
+    "feat_D": extract_feature_D, 
+    "feat_E": extract_feature_E,
+    "feat_F": extract_feature_F,
     # ALSO IMPORT EXTENDED FEATURES IN EXTENDED.py LATER!!!
 }
 
