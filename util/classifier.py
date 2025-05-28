@@ -121,7 +121,7 @@ class Classifier:
         
         tuning_results = {}
         tuning_probabilities = pd.DataFrame({
-            'filename': self.df.loc[self.X_val.index, 'filename'],
+            'filename': self.df.loc[self.X_val.index, 'image_filename'],
             'y_true': self.y_val
         })
         

@@ -62,6 +62,11 @@ def measure_streaks(record: 'Record') -> float:
     # Normalize Frangi output
     vesselness_norm = (vesselness - vesselness.min()) / (vesselness.max() - vesselness.min() + 1e-8)
 
+    # Ensure both arrays have the same size
+    if vesselness_norm.shape != border_ring.shape:
+        # Resize border_ring to match vesselness_norm's dimensions
+        border_ring = cv2.resize(border_ring, (vesselness_norm.shape[1], vesselness_norm.shape[0]))
+
     # Apply ring mask
     streak_area = vesselness_norm * (border_ring / 255.0)
 
