@@ -12,13 +12,16 @@ from util import (
     GridSearchCV,
     RandomizedSearchCV,
     StandardScaler,
+    RepeatedStratifiedKFold,
     TunedThresholdClassifierCV,
     Pipeline,
     PCA,
     DecisionBoundaryDisplay,
+    LearningCurveDisplay,
     accuracy_score,
     roc_curve,
     auc,
+    cross_val_score,
     precision_recall_curve,
     confusion_matrix,
     classification_report,
@@ -27,7 +30,9 @@ from util import (
     precision_score,
     recall_score,
     f1_score,
-    roc_auc_score
+    roc_auc_score,
+    calibration_curve,
+    learning_curve
 )
 
 class Classifier:
@@ -125,6 +130,9 @@ class Classifier:
             'y_true': self.y_val
         })
         
+        all_scores = []
+        
+        
         
         for name, pipeline in self.classifiers.items():
             if name not in param_grids:
@@ -145,34 +153,59 @@ class Classifier:
             grid.fit(self.X_train_sub, self.y_train_sub)
             self.trained_models[f"{name}"] = grid.best_estimator_
             
+            
+            
+            # Doing CV for for distribution of scores
+            rskf = RepeatedStratifiedKFold(n_splits=5, n_repeats=10, random_state=89)
+            scores = cross_val_score(
+                grid.best_estimator_,
+                self.X_train_sub,
+                self.y_train_sub,
+                cv=rskf,
+                scoring=scoring,
+                n_jobs=-1,
+                groups= self._get_train_sub_groups()
+            )
+            
+            all_scores.append(pd.DataFrame({
+                'model': name,
+                'score': scores
+            }))
+            
+            
+            
             tuning_results[name] = {
                 'best_score': grid.best_score_,
                 'scoring': scoring,
-                'best_params': grid.best_params_
+                'best_params': grid.best_params_,
+                
+                # Additional metrics you can compute here:
+                'confusion_matrix': confusion_matrix(self.y_val, y_val_pred).tolist(),
+                'roc_auc': roc_auc_score(self.y_val, y_val_proba),
+                'accuracy': accuracy_score(self.y_val, y_val_pred),
+                'f1_score': f1_score(self.y_val, y_val_pred),
+                'precision': precision_score(self.y_val, y_val_pred),
+                'recall': recall_score(self.y_val, y_val_pred),
+                "cv_mean": np.mean(scores),
+                "cv_std": np.std(scores)
             }
+            
+            
+            
             self._save_grid_search_results(name, grid)
             
-            y_val_pred = grid.predict(self.X_val)
-            y_val_proba = np.round(grid.predict_proba(self.X_val)[:, 1],3)
+            y_val_pred = grid.best_estimator_.predict(self.X_val)
+            y_val_proba = np.round(grid.best_estimator_.predict_proba(self.X_val)[:, 1],3)
             tuning_probabilities[f"{name}_y_pred"] = y_val_pred
             tuning_probabilities[f"{name}_y_proba"] = y_val_proba
             
-            # Plot ROC curve for hyperparameter tuning
-            fpr, tpr, _ = roc_curve(self.y_val, y_val_proba)
-            roc_auc = auc(fpr, tpr)
-            plt.figure(figsize=(8, 6))
-            plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'{name} (AUC = {roc_auc:.2f})')
-            plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
-            plt.xlim([0.0, 1.0])
-            plt.ylim([0.0, 1.05])
-            plt.xlabel('False Positive Rate')
-            plt.ylabel('True Positive Rate')
-            plt.title('Receiver Operating Characteristic (ROC) Curve')
-            plt.legend(loc='lower right')
-            plt.show()
-            self._visualize(grid.best_estimator_, self.X_train_sub, self.y_train_sub, self.X_val, self.y_val)
+
+            self._visualize(name, grid.best_estimator_, self.X_val, self.y_val, cv=cv, scoring=scoring, score_name=scoring.replace("_", " ").title())
             
-        self._save_results_probabilities(tuning_results, tuning_probabilities, "tuning")
+        scores_df = pd.concat(all_scores, ignore_index=True)
+        self._save_results_probabilities(tuning_results, tuning_probabilities, "tuning", cv)
+        self._visualize_CV_boxplots(scores_df, scoring)
+        
         
     def _save_grid_search_results(self, name: str, grid: GridSearchCV) -> None:
         """
@@ -186,28 +219,49 @@ class Classifier:
         results_df.to_csv(output_file, index=False)
         print(f"[INFO] - classifier.py - Line 180 - Grid search results for {name} saved to {output_file}")
 
-    def _visualize(self, model: BaseEstimator, X: pd.DataFrame, y: pd.Series, X_val: pd.DataFrame, y_val: pd.DataFrame) -> None:
+    def _visualize_CV_boxplots(self, scores_df: pd.DataFrame, scoring: str) -> None:
+        """
+        Visualize the cross-validation scores using boxplots.
+        """
+        models = scores_df['model'].unique()
+        data = [scores_df.loc[scores_df['model'] == model, 'score'] for model in models]
+        
+        
+        plt.figure(figsize=(8, 5))
+        plt.boxplot(data, labels=models, showfliers=False)
+        plt.title('Cross-Validation Scores by Model')
+        plt.xlabel('Model')
+        plt.ylabel(scoring.replace("_", " ").title())
+        plt.grid(axis='y', linestyle='--', alpha=0.5)
+        plt.tight_layout()
+        plt.show()
+        plt.clf()
+        
+    def _visualize(self, name: str, model: BaseEstimator, X: pd.DataFrame, y: pd.Series, cv, scoring: str, score_name: str) -> None:
         """ Visualize multiple things:
         -  Decision boundary of the model using PCA
         """ 
+
+        
+        
         print(f"[INFO] - classifier.py - Line 190 - Visualizing model: {model.__class__.__name__}")
         print("X shape:", X.shape)
         print("y shape:", y.shape)
         if X.shape[1] > 2:
             pca = PCA(n_components=2)
-            X = pca.fit_transform(X)
-            X_val = pca.transform(X_val)
+            X_pca = pca.fit_transform(X)
+
             
-        scaler = StandardScaler()
-        X = scaler.fit_transform(X)
-        X_val = scaler.transform(X_val)
+        """   scaler = StandardScaler()
+        X_pca = scaler.fit_transform(X_pca)
         print("X shape:", X.shape)
-        print("y shape:", y.shape)
+        print("y shape:", y.shape)"""
+        
         
         # mesh grid
         xx, yy = np.meshgrid(
-            np.linspace(X[:, 0].min(), X[:, 0].max()),
-            np.linspace(X[:, 1].min(), X[:, 1].max())
+            np.linspace(X_pca[:, 0].min(), X_pca[:, 0].max(), 200),
+            np.linspace(X_pca[:, 1].min(), X_pca[:, 1].max(), 200)
         )
         
         grid_points = np.c_[xx.ravel(), yy.ravel()]
@@ -220,12 +274,67 @@ class Classifier:
             xx1 = yy,
             response = y_pred
         )
-        display_train.plot()
+        display_train.plot(std_display_style='fill_between')
         plt.show()
+        plt.clf()
+        
+        
             
+            
+            
+        y_pred = model.predict(X)
+        y_proba = np.round(model.predict_proba(X)[:, 1],3)
         
+        # Plot ROC curve for hyperparameter tuning
+        fpr, tpr, _ = roc_curve(y, y_proba)
+        roc_auc = auc(fpr, tpr)
+        plt.figure(figsize=(8, 6))
+        plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'{name} (AUC = {roc_auc:.2f})')
+        plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+        plt.xlim([0.0, 1.0])
+        plt.ylim([0.0, 1.05])
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.title('Receiver Operating Characteristic (ROC) Curve')
+        plt.legend(loc='lower right')
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
+        plt.clf()
         
+        # Calibration curve
+        prob_true, prob_pred = calibration_curve(y, y_proba, n_bins=10)
+        plt.figure(figsize=(6, 5))
+        plt.plot(prob_pred, prob_true, marker='o')
+        plt.plot([0, 1], [0, 1], '--', color='gray')  # perfect calibration line
+        plt.title('Calibration Curve')
+        plt.xlabel('Predicted Probability')
+        plt.ylabel('Actual Probability')
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
+        plt.clf()
         
+        # Learning curve
+        display = LearningCurveDisplay.from_estimator(
+            estimator=model,
+            X=self.X_train_sub,
+            y=self.y_train_sub,
+            cv=cv,
+            scoring=scoring,
+            n_jobs=-1,
+            train_sizes=np.linspace(0.1, 1.0, 10),
+            score_name=score_name
+            )
+        display.plot()
+        plt.title("Learning Curve for " + name + " (Scoring: " + score_name + ")")
+        plt.xlabel('Training Size')
+        plt.ylabel(score_name)
+        plt.legend(loc='best')
+        plt.show()
+        plt.clf()
+    
 
 
     def optimize_thresholds(self, scoring: str = 'f1') -> None:
@@ -247,7 +356,8 @@ class Classifier:
                 scoring=scoring,
                 cv="prefit",
                 n_jobs=-1,
-                refit=False # Use prefit models
+                refit=False # Use prefit models,
+                
                 )
             tuner.fit(self.X_val, self.y_val)
             self.trained_models[name] = tuner

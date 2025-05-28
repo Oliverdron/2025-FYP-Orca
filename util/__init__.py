@@ -41,13 +41,14 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.neural_network import MLPClassifier
 from sklearn.feature_selection import RFE
-from sklearn.model_selection import GridSearchCV, RandomizedSearchCV, StratifiedGroupKFold, TunedThresholdClassifierCV
-from sklearn.model_selection import train_test_split, cross_validate
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV, StratifiedGroupKFold, TunedThresholdClassifierCV, LearningCurveDisplay, RepeatedStratifiedKFold
+from sklearn.model_selection import train_test_split, cross_validate, learning_curve
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, precision_score, recall_score, f1_score, roc_auc_score, roc_curve, auc, precision_recall_curve
+from sklearn.metrics import accuracy_score, cross_val_score, confusion_matrix, classification_report, precision_score, recall_score, f1_score, roc_auc_score, roc_curve, auc, precision_recall_curve
 from sklearn.pipeline import Pipeline
 from sklearn.decomposition import PCA
 from sklearn.inspection import DecisionBoundaryDisplay
+from sklearn.calibration import calibration_curve
 
 # Classes
 from util.img_util import Dataset, Record
@@ -86,17 +87,18 @@ from util.feature_A import asymmetry            as extract_feature_A
 from util.feature_B import border_irregularity  as extract_feature_B
 from util.feature_C import color_heterogeneity  as extract_feature_C
 from util.feature_D import hair_feat_extraction as extract_feature_D
-from util.feature_E import vascular_score       as extract_feature_E
-from util.feature_F import measure_streaks      as extract_feature_F
+from util.feature_E import vascular_score as extract_feature_E
+from util.feature_F import measure_streaks as extract_feature_F
 
 # Feature map
 ALL_FEATURES = {
     "feat_A": extract_feature_A,
     "feat_B": extract_feature_B,
     "feat_C": extract_feature_C,
-    "feat_D": extract_feature_D, 
+    "feat_D": extract_feature_D,
     "feat_E": extract_feature_E,
     "feat_F": extract_feature_F,
+     
     # ALSO IMPORT EXTENDED FEATURES IN EXTENDED.py LATER!!!
 }
 
