@@ -10,6 +10,7 @@ import random
 from math import sqrt, floor, ceil, nan, pi, log10, sqrt
 from statistics import variance, stdev
 from datetime import datetime
+import joblib
 
 # ── Numerical & image processing ────────────────────────────────────────────
 import cv2
@@ -43,5 +44,5 @@ from sklearn.feature_selection import RFE
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV, StratifiedGroupKFold, TunedThresholdClassifierCV
 from sklearn.model_selection import train_test_split, cross_validate
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, precision_score, recall_score, f1_score, roc_auc_score
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, precision_score, recall_score, f1_score, roc_auc_score, roc_curve, auc, precision_recall_curve
 from sklearn.pipeline import Pipeline

@@ -6,7 +6,7 @@ from util.feature_D      import hair_feat_extraction as hair_extraction
 from util.classifier     import Classifier
 
 from util import (
-    Path, pd, os,
+    Path, pd, os, np,
     LogisticRegression,
     GradientBoostingClassifier,
     RandomForestClassifier,
@@ -24,6 +24,7 @@ FEATURE_MAP = {
     "feat_B": extract_feature_B,
     #"feat_C": extract_feature_C,
     #"feat_D": hair_extraction,
+    #"feat_D": extract_feature_D, 
     # ALSO IMPORT EXTENDED FEATURES IN EXTENDED.py LATER!!!
 }
 
@@ -32,10 +33,9 @@ FEATURE_MAP = {
 ALL_CLASSIFIERS = {
     "lr": Pipeline([
         ("scaler", StandardScaler()),
-        ("clf", LogisticRegression(max_iter=1000, random_state=42))
+        ("clf", LogisticRegression(max_iter=1000, random_state=42, class_weight="balanced"))
     ]),
     "rf": Pipeline([
-        # forest models often work without scaling, but it's OK here
         ("scaler", StandardScaler()),
         ("clf", RandomForestClassifier(n_jobs=-1, random_state=42))
     ]), 
@@ -59,7 +59,7 @@ ALL_CLASSIFIERS = {
 }
 
 # Choose a subset by name
-SELECTED = ["mlp"]
+SELECTED = ["mlp","lr"]
 CLASSIFIERS = {k: ALL_CLASSIFIERS[k] for k in SELECTED}
 
 PARAM_GRIDS = {
@@ -71,6 +71,11 @@ PARAM_GRIDS = {
     'clf__learning_rate_init': [0.001, 0.0001],
     'clf__batch_size': [32, 64]
     },
+    "lr" :
+    {
+    'clf__C': np.logspace(-3, 3, 7),         
+    'clf__l1_ratio': [0, 0.15, 0.5, 0.85, 1]    
+    }
 }
 
 def get_base_dir() -> Path:
@@ -124,6 +129,7 @@ def main():
     
     # Only run this when classifiers are trained and saved to the maximum extent
     clf.evaluate_classifiers()  
+    print(clf.trained_models["mlp"].best_threshold_)
 
     # IF CLASSIFIER_CONFIG.JSON EXISTS, IMPORT AND HAVE METHOD TO CLASSIFY OTHER DATASET!
     # VISUALIZE THE TRAINED CLASSIFIER (see: https://stackoverflow.com/questions/41138706/recreating-decision-boundary-plot-in-python-with-scikit-learn-and-matplotlib)
@@ -131,7 +137,7 @@ def main():
     
 
     
-        # In classifier.py -> Save the best model's results/parameters
+    # In classifier.py -> Save the best model's results/parameters
 
 """    model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(hierarchicalClassifier.X, hierarchicalClassifier.Y_binary)

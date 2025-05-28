@@ -1,0 +1,111 @@
+{
+    "mlp": {
+        "best_threshold": 0.47522527483330457,
+        "scoring": "roc_auc",
+        "best_score": 0.5353950446937429,
+        "best_params": {
+            "cv": "prefit",
+            "estimator__memory": null,
+            "estimator__steps": [
+                [
+                    "scaler",
+                    "StandardScaler()"
+                ],
+                [
+                    "clf",
+                    "MLPClassifier(alpha=0.01, batch_size=64, early_stopping=True,\n              hidden_layer_sizes=(128, 64), random_state=42)"
+                ]
+            ],
+            "estimator__transform_input": null,
+            "estimator__verbose": false,
+            "estimator__scaler": "StandardScaler()",
+            "estimator__clf": "MLPClassifier(alpha=0.01, batch_size=64, early_stopping=True,\n              hidden_layer_sizes=(128, 64), random_state=42)",
+            "estimator__scaler__copy": true,
+            "estimator__scaler__with_mean": true,
+            "estimator__scaler__with_std": true,
+            "estimator__clf__activation": "relu",
+            "estimator__clf__alpha": 0.01,
+            "estimator__clf__batch_size": 64,
+            "estimator__clf__beta_1": 0.9,
+            "estimator__clf__beta_2": 0.999,
+            "estimator__clf__early_stopping": true,
+            "estimator__clf__epsilon": 1e-08,
+            "estimator__clf__hidden_layer_sizes": [
+                128,
+                64
+            ],
+            "estimator__clf__learning_rate": "constant",
+            "estimator__clf__learning_rate_init": 0.001,
+            "estimator__clf__max_fun": 15000,
+            "estimator__clf__max_iter": 200,
+            "estimator__clf__momentum": 0.9,
+            "estimator__clf__n_iter_no_change": 10,
+            "estimator__clf__nesterovs_momentum": true,
+            "estimator__clf__power_t": 0.5,
+            "estimator__clf__random_state": 42,
+            "estimator__clf__shuffle": true,
+            "estimator__clf__solver": "adam",
+            "estimator__clf__tol": 0.0001,
+            "estimator__clf__validation_fraction": 0.1,
+            "estimator__clf__verbose": false,
+            "estimator__clf__warm_start": false,
+            "estimator": "Pipeline(steps=[('scaler', StandardScaler()),\n                ('clf',\n                 MLPClassifier(alpha=0.01, batch_size=64, early_stopping=True,\n                               hidden_layer_sizes=(128, 64),\n                               random_state=42))])",
+            "n_jobs": -1,
+            "random_state": null,
+            "refit": false,
+            "response_method": "auto",
+            "scoring": "roc_auc",
+            "store_cv_results": false,
+            "thresholds": 100
+        }
+    },
+    "lr": {
+        "best_threshold": 0.49183836974889944,
+        "scoring": "roc_auc",
+        "best_score": 0.5149979002939589,
+        "best_params": {
+            "cv": "prefit",
+            "estimator__memory": null,
+            "estimator__steps": [
+                [
+                    "scaler",
+                    "StandardScaler()"
+                ],
+                [
+                    "clf",
+                    "LogisticRegression(C=np.float64(0.001), class_weight='balanced', l1_ratio=0,\n                   max_iter=1000, random_state=42)"
+                ]
+            ],
+            "estimator__transform_input": null,
+            "estimator__verbose": false,
+            "estimator__scaler": "StandardScaler()",
+            "estimator__clf": "LogisticRegression(C=np.float64(0.001), class_weight='balanced', l1_ratio=0,\n                   max_iter=1000, random_state=42)",
+            "estimator__scaler__copy": true,
+            "estimator__scaler__with_mean": true,
+            "estimator__scaler__with_std": true,
+            "estimator__clf__C": 0.001,
+            "estimator__clf__class_weight": "balanced",
+            "estimator__clf__dual": false,
+            "estimator__clf__fit_intercept": true,
+            "estimator__clf__intercept_scaling": 1,
+            "estimator__clf__l1_ratio": 0,
+            "estimator__clf__max_iter": 1000,
+            "estimator__clf__multi_class": "deprecated",
+            "estimator__clf__n_jobs": null,
+            "estimator__clf__penalty": "l2",
+            "estimator__clf__random_state": 42,
+            "estimator__clf__solver": "lbfgs",
+            "estimator__clf__tol": 0.0001,
+            "estimator__clf__verbose": 0,
+            "estimator__clf__warm_start": false,
+            "estimator": "Pipeline(steps=[('scaler', StandardScaler()),\n                ('clf',\n                 LogisticRegression(C=np.float64(0.001),\n                                    class_weight='balanced', l1_ratio=0,\n                                    max_iter=1000, random_state=42))])",
+            "n_jobs": -1,
+            "random_state": null,
+            "refit": false,
+            "response_method": "auto",
+            "scoring": "roc_auc",
+            "store_cv_results": false,
+            "thresholds": 100
+        }
+    }
+}
