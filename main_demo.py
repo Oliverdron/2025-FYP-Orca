@@ -93,3 +93,15 @@ def main():
 
 if __name__ == "__main__":
     main()
+############################### TRYING OUT FEATURE ANALYSIS ###############################
+from util.featureanalysis import plot_feature_distributions, plot_feature_correlations
+import pandas as pd
+
+# Load dataset.csv created during Dataset export
+df = pd.read_csv("dataset.csv")
+
+# Call your plotting functions
+plot_feature_distributions(df)
+plot_feature_correlations(df)
+
+print("[INFO] - Feature plots generated in /results/")
