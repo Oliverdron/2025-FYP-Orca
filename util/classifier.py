@@ -1,378 +1,608 @@
 from util import (
-    datetime,
-    joblib,
-    json,
-    np,
-    os,
-    pd,
-    np,
-    plt,
-    StratifiedGroupKFold,
-    BaseEstimator,
-    GridSearchCV,
-    RandomizedSearchCV,
-    StandardScaler,
-    RepeatedStratifiedKFold,
-    TunedThresholdClassifierCV,
-    Pipeline,
-    PCA,
-    DecisionBoundaryDisplay,
-    LearningCurveDisplay,
-    accuracy_score,
-    roc_curve,
-    auc,
-    cross_val_score,
-    precision_recall_curve,
-    confusion_matrix,
-    classification_report,
-    cross_validate,
-    clone,
-    precision_score,
-    recall_score,
-    f1_score,
-    roc_auc_score,
-    calibration_curve,
-    learning_curve
+    datetime, joblib, json, np, os, pd, plt, sns,
+    StratifiedGroupKFold, BaseEstimator,
+    GridSearchCV, RandomizedSearchCV, LearningCurveDisplay,
+    StandardScaler, TunedThresholdClassifierCV,
+    Pipeline, PCA, DecisionBoundaryDisplay,
+    accuracy_score, roc_curve, auc, precision_recall_curve,
+    confusion_matrix, classification_report, calibration_curve,
+    clone, precision_score, recall_score,
+    f1_score, roc_auc_score
 )
 
 class Classifier:
-    def __init__(
-        self,
-        base_dir: str,
-        feature_names: list,
-        classifiers: dict[str, Pipeline],
-        test_size: float = 0.3,
-        random_state: int = 42,
-        output_path: str = None
-    ) -> None:
+    def __init__(self, output_path: str = None, random_state: int = 42):
+        """
+            Parent class for shared classifier logic
+
+            Parameters:
+                output_path (str): Path to save the results or predictions
+                random_state (int): Random state for reproducibility
+
+            Methods:
+                evaluate_classifiers(X_test: pd.DataFrame, y_test: pd.Series) -> None: Evaluates the trained classifiers on the test set
+                make_predictions(X_new: pd.DataFrame) -> dict: Make predictions using the loaded models
+                save_models() -> None: Save the trained models to disk
+                save_probabilities(results, probabilities, type: str) -> None: Save results and probabilities to CSV/JSON
+                visualize(model: BaseEstimator, X: pd.DataFrame, y: pd.Series, X_val: pd.DataFrame, y_val: pd.DataFrame) -> None: Visualize model decision boundaries
+                visualize_CV_boxplots(scoring: str) -> None: Visualize cross-validation scores using boxplots
+        """
+        self.output_path = output_path
+        self.random_state = random_state
+        self.trained_models = {}
+
+    def evaluate_classifiers(self, X_test, y_test, scoring_functions: dict = {
+        "accuracy": accuracy_score,
+        "precision": precision_score,
+        "recall": recall_score,
+        "f1": f1_score,
+        "roc_auc": roc_auc_score,
+        'confusion_matrix': confusion_matrix
+    }) -> dict:
+        """
+            Evaluate the trained classifier on the test set
+            
+            Param:
+                X_test (pd.DataFrame): Test features
+                y_test (pd.Series): Test labels
+
+            Returns:
+                model_results (dict): Dictionary containing evaluation results for each model
+                probabilities (pd.DataFrame): DataFrame containing predicted probabilities and labels
+        """
+        # Check if 'self.df' exists before using it (it may not exist in the case of loaded models)
+        if hasattr(self, 'df') and self.df is not None:
+            # If self.df exists, use it to get the 'image_fname' column for display
+            probabilities = pd.DataFrame({
+                'image_fname': self.df.loc[X_test.index, 'image_fname'],
+                'y_true': y_test
+            })
+        else:
+            # If self.df doesn't exist, create the probabilities with only the truth labels
+            probabilities = pd.DataFrame({
+                'y_true': y_test
+            })
+
+        # Create a dictionary to store evaluation results
+        model_results = {}
+
+        # Iterate through each trained model and evaluate its performance
+        for name, model in self.trained_models.items():
+            print( f"[INFO] - classifier.py - Evaluating classifier: {name}")
+            
+            # Check if the model is fitted
+            if not hasattr(model, 'predict'):
+                print(f"[WARNING] - classifier.py - Model {name} is not fitted. Skipping evaluation.")
+                continue
+                
+            # Predict on the test set
+            y_pred = model.predict(X_test)
+
+            # Store predicted labels in the
+            probabilities[f"{name}_y_pred"] = y_pred
+            
+            # If the model supports predict_proba, get probabilities
+            if hasattr(model, 'predict_proba'):
+                y_proba = np.round(model.predict_proba(X_test)[:, 1], 3)
+                # Store predicted probabilities in the
+                probabilities[f"{name}_y_proba"] = y_proba
+            
+            # Store model evaluation results using provided or default scoring functions
+            model_results[name] = {}
+            for metric_name, metric_func in scoring_functions.items():
+                try:
+                    if metric_name == "roc_auc" and y_proba is None:
+                        # Skip AUC if no probabilities are available
+                        model_results[name][metric_name] = None
+                    else:
+                        # Compute the metric (accuracy, precision, etc.)
+                        model_results[name][metric_name] = metric_func(y_test, y_pred)
+                except Exception as e:
+                    print(f"[WARNING] - Error computing {metric_name} for {name}: {e}")
+            
+            # Lastly, save the model's best threshold if available
+            if hasattr(model, 'best_threshold_'):
+                model_results[name]['best_threshold'] = model.best_threshold_
+
+            print(f"    [INFO] - classifier.py - Evaluation results for {name}:\n{classification_report(y_test, y_pred)}")
+
+        # Return the evaluation results
+        return model_results, probabilities
+
+    def save_result_and_probabilities(self, results: dict, probabilities: dict, type: str) -> None:
+        """
+            Save the results and probabilities of the classifier evaluation to CSV/JSON
+
+            Parameters:
+                results (dict): Dictionary containing evaluation results
+                probabilities (dict): Dictionary containing predicted probabilities
+                type (str): Type of evaluation (e.g., "tuning", "test", "validation", "final")
+        """
+        # Construct output directory path
+        output_file = os.path.join(self.output_path, f"{type}_probabilities.csv")
+        # Save probabilities to CSV
+
+        probabilities.to_csv(output_file, index=False)
+        print(f"[INFO] - classifier.py - {type} probabilities saved to {output_file}")
+
+        # Construct output directory path for results
+        output_file = os.path.join(self.output_path, f"{type}_results.json")
+        # Save evaluation results to JSON file
+        with open(output_file, 'w') as f:
+            json.dump(results, f, indent=4, default=str)
+        print(f"[INFO] - classifier.py - {type} results saved to {output_file}")
+
+    def make_predictions(self, X_new: pd.DataFrame) -> dict:
+        """
+            Given a new dataset (X_new), make predictions using the loaded models
+        """
+        # Dictionary to store predictions from each model
+        predictions = {}
+        
+        # If self.trained_models is empty (should not be, but a fall-back), it means no models have been trained or loaded
+        if not self.trained_models:
+            raise ValueError("[ERROR] - classifier.py - No trained models available. Please train or load models before making predictions.")
+        # Iterate through each trained model and make predictions
+        for name, model in self.trained_models.items():
+            predictions[name] = model.predict(X_new)
+            print(f"    [INFO] - classifier.py - Predictions made with {name}")
+        
+        # Return the dictionary containing predictions from all models
+        return predictions
+
+    def save_models(self) -> None:
+        """
+            Save the trained models to disk
+        """
+        if not self.output_path:
+            raise ValueError("[ERROR] - classifier.py - Output path is not set. Please provide a valid output path to save models.")
+        
+        # Iterate through each trained model and save it to the specified output path
+        for name, model in self.trained_models.items():
+            model_file = os.path.join(self.output_path, f"{name}_model.pkl")
+            try:
+                joblib.dump(model, model_file)
+                print(f"    [INFO] - classifier.py - Saved model {name} to {model_file}")
+            except Exception as e:
+                print(f"[WARNING] - classifier.py - Failed to save model {name}: {e}")
+
+    def visualize(self, X: pd.DataFrame, y: pd.Series) -> None:
+        """
+            Visualize model decision boundaries using PCA for dimensionality reduction
+        """
+        
+        
+        for name, model in self.trained_models.items():
+            print(f"[INFO] - classifier.py - Visualizing model: {model.__class__.__name__}")
+            print("X shape:", X.shape)
+            print("y shape:", y.shape)
+            # Check if X has more than 2 features, if so, apply PCA to reduce to 2D
+            if X.shape[1] > 2:
+                # Initialize PCA to reduce to 2 components
+                pca = PCA(n_components=2)
+                # Preform the PCA transformation on both training and validation sets
+                X_plot = pca.fit_transform(X)
+                # Clone the model for plotting purposes (to avoid modifying the original model)
+                model_for_plot = clone(model)  
+                model_for_plot.fit(X_plot, y)
+            else:
+                # If X already has 2 features, no need for PCA
+                X_plot = X
+                model_for_plot = clone(model)
+                model_for_plot.fit(X_plot, y)
+            
+            # Standardize the training and validation data
+            scaler = StandardScaler()
+            X_plot= scaler.fit_transform(X_plot)
+
+            # Print the shapes of the transformed data
+            print("X shape:", X.shape)
+            print("y shape:", y.shape)
+            
+            # Plot decision boundary using sklearn's from_estimator
+            disp = DecisionBoundaryDisplay.from_estimator(
+                model_for_plot,
+                X_plot,
+                response_method="predict",
+                cmap="coolwarm",
+                alpha=0.5
+            )
+            # Overlay actual data points using Seaborn
+            sns.scatterplot(
+                x=X_plot[:, 0],
+                y=X_plot[:, 1],
+                hue=y,
+                palette="Set2",
+                edgecolor="k",
+                s=50,
+                ax=disp.ax_
+            )
+            
+
+            disp.ax_.set_title(f"Decision Boundary: {name} (PCA Reduced)")
+            disp.ax_.set_xlabel("Component 1")
+            disp.ax_.set_ylabel("Component 2")
+            plt.tight_layout()
+            #plt.show()
+            plt.savefig(f"images/{name}_decision_boundary.png", dpi=300, bbox_inches='tight')
+
+            # Plot ROC curve for hyperparameter tuning
+            y_proba = np.round(model.predict_proba(X)[:, 1],3)
+            sns.set_style("whitegrid")
+            fpr, tpr, _ = roc_curve(y, y_proba)
+            roc_auc = auc(fpr, tpr)
+            # Plot
+            plt.figure(figsize=(8, 6))
+            plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'{name} (AUC = {roc_auc:.2f})')
+            plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+            plt.xlim([0.0, 1.0])
+            plt.ylim([0.0, 1.05])
+            plt.xlabel('False Positive Rate')
+            plt.ylabel('True Positive Rate')
+            plt.title('ROC Curve')
+            plt.legend(loc='lower right')
+            plt.grid(True, linestyle='--', alpha=0.5)
+            plt.tight_layout()
+            #plt.show()
+            plt.savefig(f"images/{name}_roc_curve.png", dpi=300, bbox_inches='tight')        
+
+
+            # Calibration curve
+            prob_true, prob_pred = calibration_curve(y, y_proba, n_bins=10, strategy="uniform")
+
+            plt.figure(figsize=(6, 5))
+            plt.plot(prob_pred, prob_true, marker='o')
+            plt.plot([0, 1], [0, 1], '--', color='gray')  # perfect calibration line
+            plt.title('Calibration Curve')
+            plt.xlabel('Predicted Probability')
+            plt.ylabel('Actual Probability')
+            plt.legend(loc ='best')
+            plt.grid(True, linestyle="--", alpha=0.5)
+            plt.tight_layout()
+            #plt.show()
+            plt.savefig(f"images/{name}_calibration_curve.png", dpi=300, bbox_inches='tight')
+        
+    def visualize_CV_boxplots(self, scoring: str) -> None:
+            """
+            Visualize the cross-validation scores using boxplots.
+            """
+        
+
+            fig = plt.figure(figsize=(10, 6))
+            sns.boxplot(
+                x='model', 
+                y='scores', 
+                data=self.scores_df, 
+                palette='Set2',
+                hue="model",
+                showfliers=False,
+            )
+            sns.stripplot(
+                x='model', 
+                y='scores', 
+                data=self.scores_df, 
+                color='black', 
+                alpha=0.3, 
+                jitter=True, 
+                size=3
+            )
+            plt.title('Cross-Validation Scores by Model', fontsize=14)
+            plt.xlabel('Model', fontsize=12)
+            plt.ylabel(scoring.replace("_", " ").title(), fontsize=12)
+            plt.grid(axis='y', linestyle='--', alpha=0.5)
+            plt.tight_layout()
+            #plt.show()
+            fig.savefig("images/boxplot_cv.png", dpi=300, bbox_inches='tight')
+            plt.close(fig)  # Clean up
+                  
+            
+class TrainClassifier(Classifier):
+    def __init__(self, base_dir: str, feature_names: list, classifiers: dict[str, Pipeline], output_path: str = None):
+        """
+            Child class for training models from scratch
+            Parent class: Classifier
+                Methods:
+                    - evaluate_classifiers(X_test: pd.DataFrame, y_test: pd.Series) -> None: Evaluates the trained classifiers on the test set
+                    - make_predictions(X_new: pd.DataFrame) -> dict: Make predictions using the loaded models
+                    - save_models() -> None: Save the trained models to disk
+                    - save_probabilities(results, probabilities, type: str) -> None: Save results and probabilities to CSV/JSON
+                    - visualize(model: BaseEstimator, X: pd.DataFrame, y: pd.Series, X_val: pd.DataFrame, y_val: pd.DataFrame) -> None: Visualize model decision boundaries
+                    - visualize_CV_boxplots(scoring: str) -> None: Visualize the cross-validation scores using boxplots
+    
+            Param:
+                base_dir (str): Base directory where the dataset is located
+                feature_names (list): List of feature names to be used for training
+                classifiers (dict[str, Pipeline]): Dictionary of classifiers to be trained
+                output_path (str): Path to save the results or predictions
+
+            Methods:
+                - load_split_data(source: str = "dataset.csv") -> None: Load and split the dataset into training, validation, and test sets
+                - training_hyperparameter_tuning(param_distr: dict[str, BaseEstimator], cv_splits: int = 5, scoring: str = "roc_auc") -> None: Perform training and hyperparameter tuning for the classifiers
+                - train() -> None: Train the classifiers using the entire training and validation set
+                - optimize_thresholds(scoring: str = 'f1') -> None: Optimize classification thresholds for the classifiers
+        """
+        super().__init__(output_path)
         self.base_dir = base_dir
         self.feature_names = feature_names
         self.classifiers = classifiers
-        self.test_size = test_size
-        self.random_state = random_state
-        self.output_path = output_path 
-        self.trained_models = {}
-        
-    def load_split_data(self, filename: str = "dataset.csv") -> None:
+
+    def load_split_data(self, source: str = "dataset.csv", label_col: str = 'label_binary', patient_col: str = 'patient_id') -> None:
         """
-        Load the dataset from a CSV file and split it into training, validation, and test sets.
+            Load and split the dataset into training, validation, and test sets
+            1) Initially split the dataset into training (80%) and testing (20%) sets
+            2) Further split the training set into a training subset (64%) and validation set (16%)
+                Using StratifiedGroupKFold to maintain the distribution of labels and patient groups across splits
+
+            Param:
+                source (str): Path to the dataset CSV file (default is "dataset.csv")
+                label_col (str): Name of the column containing the labels (default is 'label_binary')
+                patient_col (str): Name of the column containing patient IDs for stratified splitting (default is 'patient_id')
         """
-        
-        # Couldn't seem to find a way to have stratified shuffled group single split, so we do it with 
-        # StratifiedGroupKFold with n_splits=5, which gives us approximately 80% train and 20% test split
-        
-        print(f"[INFO] - classifier.py - Line 45 - Loading dataset from {filename} and splitting into train, val, and test sets.")
-        # Load the dataset, which stores pre-calculated features and labels
-        self.df = pd.read_csv(os.path.join(self.base_dir, filename))
+        print(f"[INFO] - classifier.py - Loading dataset from {source} and splitting into train/validation/testing sets")
+        # Check if the path with source exists
+        if not os.path.exists(os.path.join(self.base_dir, source)):
+            raise FileNotFoundError(f"[ERROR] - classifier.py - Dataset file {source} not found in {self.base_dir}. Please check the path or ensure the dataset is available.")
+
+        # Read the dataset from the specified CSV file
+        self.df = pd.read_csv(os.path.join(self.base_dir, source))
+        # Seperate features and labels (features on the X-axis, labels on the Y-axis)
         self.X = self.df[self.feature_names]
-        self.y = self.df['label_binary']
-        groups = self.df['patient_id']
-        print(self.X)
-        # 1. Initial split: Train (80%) + Test (20%)
-        # n_splits=5 equals approximately 80% train and 20% test split
+        self.y = self.df[label_col]
+        # Extract patient groups for stratified splitting
+        groups = self.df[patient_col]
+
+        # 1) Initial split: Train (80%) + Test (20%)
+        # (Note: n_splits=5 equals approximately 80% train and 20% test split)
+        # This is a cross-validator that splits data into train and test sets, ensuring that the splits are stratified by the labels (y) -> should not split e.g. multiple samples from the same patient
         sgkf_test = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=self.random_state)
+        # Now, as sgkf_test.split(self.X, self.y, groups) returns a generator object
+        # We use 'next()' function to retrieve the first batch (i.e., the first train-test split) from the generator
+        # This will give us the indices for the training and testing sets
         self.train_idx, self.test_idx = next(sgkf_test.split(self.X, self.y, groups))
+        # Then, we use these indices to create the training and testing sets
         self.X_train = self.X.iloc[self.train_idx]
         self.X_test = self.X.iloc[self.test_idx]
+        # And the corresponding labels
         self.y_train = self.y.iloc[self.train_idx]
         self.y_test = self.y.iloc[self.test_idx]
 
-        # 2. Split train into train_sub (64%) + val (16%) 
-        # val_size is 20% of TRAINING data (0.2 * 0.8 = 0.16 of total)
+        # 2) Split train into train_sub (64%) + val (16%)
+        # (Note: val_size is 20% of TRAINING data (0.2 * 0.8 = 0.16 of total))
+        # Seperate the training groups (the patient ids) for stratified splitting
         train_groups = groups.iloc[self.train_idx]
+        # Perform the same stratified group k-fold split for the training data
         sgkf_val = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=self.random_state + 1)
+        # Retrieve the first batch of train-validation split indices
         self.train_sub_idx, self.val_idx = next(sgkf_val.split(self.X_train, self.y_train, train_groups))
+        # Now, we can create the training subset and validation set
         self.X_train_sub = self.X_train.iloc[self.train_sub_idx]
         self.X_val = self.X_train.iloc[self.val_idx]
+        # And the corresponding labels
         self.y_train_sub = self.y_train.iloc[self.train_sub_idx]
         self.y_val = self.y_train.iloc[self.val_idx]
         
+        print(f"[INFO] - classifier.py - Finished loading and splitting dataset")
 
-
-        # Check class balance
+        # Verify the splits to ensure they are valid
         self._verify_splits(groups)
-        
-        
-    def _verify_splits(self, groups):
-        """Validate group separation and class balance."""
-        print("[INFO] - classifier.py - Line 110 - Verifying splits for group separation and class balance.")
-        
-        # Check no patient overlap
+
+    def _verify_splits(self, groups, sample_threshold: int = 20) -> None:
+        """
+            Validate the group separation and class balance after splitting
+        """
+        print("[INFO] - classifier.py - Verifying splits for group separation and class balance")
+        # Get groups for train and validation
         train_groups = set(groups.iloc[self.train_idx].iloc[self.train_sub_idx])
         val_groups = set(groups.iloc[self.train_idx].iloc[self.val_idx])
-        assert train_groups.isdisjoint(val_groups), "Group leakage detected!"
-        
-        # Check minimum samples
-        assert min(self.y_val.value_counts()) >= 20, "Increase val_size!"
-        
-        print("Class distributions:")
-        print(f"Train: {self.y_train_sub.value_counts(normalize=True)}")
-        print(f"Val: {self.y_val.value_counts(normalize=True)}")
-        print(f"Test: {self.y_test.value_counts(normalize=True)}")
-        
-        
-        print(f"\nSplit Verification:")
-        print(f"Train: {len(self.train_idx)}, Val: {len(self.val_idx)}, Test: {len(self.test_idx)}")
-        print(f"Total: {len(self.train_sub_idx)+len(self.val_idx)+len(self.test_idx)} vs Original: {len(self.df)}")     
-    
-    
-    def _get_train_sub_groups(self):
-        """Helper to get patient IDs for train-sub."""
-        return self.df.loc[self.train_idx].iloc[self.train_sub_idx]['patient_id']
-    
-    
 
-    def hyperparameter_tuning(self, param_grids: dict[str,BaseEstimator], cv_splits: int = 5, scoring: str = "roc_auc") -> None:
-        
-        tuning_results = {}
-        tuning_probabilities = pd.DataFrame({
-            'filename': self.df.loc[self.X_val.index, 'image_filename'],
-            'y_true': self.y_val
-        })
-        
-        all_scores = []
-        
-        
-        
+        # Check no overlap between the training and validation sets
+        if not train_groups.isdisjoint(val_groups):
+            raise ValueError("[ERROR] - classifier.py - Overlap found between training and validation sets. Please check the splitting logic.")
+
+        # Check minimunum number of samples
+        assert len(self.y_val) >= sample_threshold, "[ERROR] - classifier.py - Training subset size is below threshold (20 samples). Please check the dataset or splitting logic."
+
+        # Print information about the splits
+        print(f"[INFO] - classifier.py - Class distributions:")
+        print(f"    [INFO] - classifier.py - Train: {self.y_train_sub.value_counts(normalize=True)}")
+        print(f"    [INFO] - classifier.py - Val: {self.y_val.value_counts(normalize=True)}")
+        print(f"    [INFO] - classifier.py - Test: {self.y_test.value_counts(normalize=True)}")
+
+        print(f"\n[INFO] - classifier.py - Split Verification:")
+        print(f"    [INFO] - classifier.py - Train: {len(self.train_idx)}, Val: {len(self.val_idx)}, Test: {len(self.test_idx)}")
+        print(f"    [INFO] - classifier.py - Total: {len(self.train_sub_idx)+len(self.val_idx)+len(self.test_idx)} vs Original: {len(self.df)}")
+
+
+    def training_hyperparameter_tuning(self, param_distr: dict[str, BaseEstimator], cv_splits: int = 5, scoring: str = "roc_auc") -> None:
+        """
+            Perform hyperparameter tuning and training for the classifiers, saves the results to CSV files in the output path and saves plots for each.
+
+            Param:
+                param_distr (dict[str, BaseEstimator]): Dictionary containing parameter grids for each classifier
+                cv_splits (int): Number of cross-validation splits (default is 5)
+                scoring (str): Scoring metric to optimize during tuning (default is "roc_auc")
+            
+            Returns:
+                model_results (dict): Dictionary containing the best parameters and scores for each model
+                probabilities (dict): Dictionary containing predicted probabilities and labels for the validation set
+        """
+        # Check if 'self.df' exists before using it (it may not exist in the case of loaded models)
+        if hasattr(self, 'df') and self.df is not None:
+        # If self.df exists, use it to get the 'image_fname' column for display
+            probabilities = pd.DataFrame({
+                'image_fname': self.df.loc[self.X_val.index, 'image_fname'],
+                'y_true': self.y_val
+            })
+        else:
+            # If self.df does not exist, raise an error (should not happen as this is the training class' method)
+            raise ValueError("[ERROR] - classifier.py - 'df' is not available. Please ensure that the dataset is loaded before proceeding.")
+
+        all_scores = [] # for the CV results
+        model_results = {} # model results
+
         for name, pipeline in self.classifiers.items():
-            if name not in param_grids:
-                print(f"[WARNING] No parameter grid for {name}. Skipping.")
+            if name not in param_distr:
+                print(f"[INFO] - classifier.py - No parameter distribution for {name}, skipping training and tuning.")
                 continue
-        
-            print(f"[INFO] - classifier.py - Line 165 - Starting hyperparameter tuning for {name}")
-            cv = StratifiedGroupKFold(n_splits=cv_splits, shuffle=True, random_state=self.random_state)
-            grid = GridSearchCV(
+            
+            print(f"[INFO] - classifier.py - Training and tuning hyperparameters for {name}")
+            # Clone the pipeline to avoid modifying the original one
+            cv = StratifiedGroupKFold(
+                n_splits=cv_splits,
+                shuffle=True,
+                random_state=self.random_state
+            )
+            # Create a RandomizedSearchCV object with the cloned pipeline and parameter distribution
+            search = RandomizedSearchCV(
                 pipeline,
-                param_grid=param_grids[name],
-                cv=cv.split(self.X_train_sub, self.y_train_sub, groups=self._get_train_sub_groups()),
+                param_distributions=param_distr[name],
+                cv=cv.split(
+                    self.X_train_sub,
+                    self.y_train_sub,
+                    groups=self.df.loc[self.train_idx].iloc[self.train_sub_idx]['patient_id']  # Use patient_id for stratified splitting
+                ),
                 scoring=scoring,
-                n_jobs=-1,
-                verbose=1
+                n_iter=50,  # Number of parameter combinations to try
+                random_state=self.random_state,
+                n_jobs=-1,  # Use all available cores for parallel processing
+                verbose=1  # Show progress during tuning
             )
-            
-            grid.fit(self.X_train_sub, self.y_train_sub)
-            self.trained_models[f"{name}"] = grid.best_estimator_
-            
-            
-            
-            # Doing CV for for distribution of scores
-            rskf = RepeatedStratifiedKFold(n_splits=5, n_repeats=10, random_state=89)
-            scores = cross_val_score(
-                grid.best_estimator_,
-                self.X_train_sub,
-                self.y_train_sub,
-                cv=rskf,
-                scoring=scoring,
-                n_jobs=-1,
-                groups= self._get_train_sub_groups()
-            )
+
+            # Fit the distribution search on the training subset
+            search.fit(self.X_train_sub, self.y_train_sub)
+            # Store the best estimator in the trained_models dictionary
+            self.trained_models[name] = search.best_estimator_
+            model = self.trained_models[name]
+            # Get the cross-validation results
+            cv_results = search.cv_results_
+            # Extract the scores from the first split (split0) and concatenate them for all splits
+            scores = cv_results["split0_test_score"]
+            for i in range(1, cv_splits):  # Adjusting based on your cv_splits
+                scores = np.concatenate((scores, cv_results[f'split{i}_test_score']))           
             
             all_scores.append(pd.DataFrame({
-                'model': name,
-                'score': scores
+                "model": name,
+                "scores": scores,
             }))
             
+            # Predict on the validation set using
+            y_pred = search.predict(self.X_val)
+            # Store predicted labels in the dictionary
+            probabilities[f"{name}_y_pred"] = y_pred
             
-            
-            tuning_results[name] = {
-                'best_score': grid.best_score_,
-                'scoring': scoring,
-                'best_params': grid.best_params_,
-                
-                # Additional metrics you can compute here:
-                'confusion_matrix': confusion_matrix(self.y_val, y_val_pred).tolist(),
-                'roc_auc': roc_auc_score(self.y_val, y_val_proba),
-                'accuracy': accuracy_score(self.y_val, y_val_pred),
-                'f1_score': f1_score(self.y_val, y_val_pred),
-                'precision': precision_score(self.y_val, y_val_pred),
-                'recall': recall_score(self.y_val, y_val_pred),
-                "cv_mean": np.mean(scores),
-                "cv_std": np.std(scores)
+            # If the model supports predict_proba, get probabilities
+            if hasattr(search, 'predict_proba'):
+                y_proba = np.round(search.predict_proba(self.X_val)[:, 1], 3)
+                # Store predicted probabilities in the DataFrame
+                probabilities[f"{name}_y_proba"] = y_proba
+
+            # Store model tuning results
+            model_results[name] = {
+                'best_score': search.best_score_,
+                'best_params': search.best_params_
             }
-            
-            
-            
-            self._save_grid_search_results(name, grid)
-            
-            y_val_pred = grid.best_estimator_.predict(self.X_val)
-            y_val_proba = np.round(grid.best_estimator_.predict_proba(self.X_val)[:, 1],3)
-            tuning_probabilities[f"{name}_y_pred"] = y_val_pred
-            tuning_probabilities[f"{name}_y_proba"] = y_val_proba
-            
 
-            self._visualize(name, grid.best_estimator_, self.X_val, self.y_val, cv=cv, scoring=scoring, score_name=scoring.replace("_", " ").title())
-            
-        scores_df = pd.concat(all_scores, ignore_index=True)
-        self._save_results_probabilities(tuning_results, tuning_probabilities, "tuning", cv)
-        self._visualize_CV_boxplots(scores_df, scoring)
-        
-        
-    def _save_grid_search_results(self, name: str, grid: GridSearchCV) -> None:
-        """
-        Save the grid search results to a csv file in the output directory.
-        """
-        if not self.output_path:
-            raise ValueError("Output path is not set.")
-        
-        output_file = os.path.join(self.output_path / "cv_results", f"{name}_cv_results.csv")
-        results_df = pd.DataFrame(grid.cv_results_)
-        results_df.to_csv(output_file, index=False)
-        print(f"[INFO] - classifier.py - Line 180 - Grid search results for {name} saved to {output_file}")
+            # Save the randomized search results to CSV file in the output path
+            output_file = os.path.join(self.output_path / "cv_results", f"{name}_cv_results.csv")
+            # Check if the directory exists, if not create it
+            os.makedirs(os.path.dirname(output_file), exist_ok=True)
+            # Save the randomized search results to CSV
+            pd.DataFrame(search.cv_results_).to_csv(output_file, index=False)
+            print(f"[INFO] - classifier.py - Randomized search results for {name} saved to {output_file}")
 
-    def _visualize_CV_boxplots(self, scores_df: pd.DataFrame, scoring: str) -> None:
-        """
-        Visualize the cross-validation scores using boxplots.
-        """
-        models = scores_df['model'].unique()
-        data = [scores_df.loc[scores_df['model'] == model, 'score'] for model in models]
-        
-        
-        plt.figure(figsize=(8, 5))
-        plt.boxplot(data, labels=models, showfliers=False)
-        plt.title('Cross-Validation Scores by Model')
-        plt.xlabel('Model')
-        plt.ylabel(scoring.replace("_", " ").title())
-        plt.grid(axis='y', linestyle='--', alpha=0.5)
-        plt.tight_layout()
-        plt.show()
-        plt.clf()
-        
-    def _visualize(self, name: str, model: BaseEstimator, X: pd.DataFrame, y: pd.Series, cv, scoring: str, score_name: str) -> None:
-        """ Visualize multiple things:
-        -  Decision boundary of the model using PCA
-        """ 
 
+            scoring_name = scoring.replace('_', ' ').title()  # Format the scoring name for display
+            # Learning curve
+            display = LearningCurveDisplay.from_estimator(
+                estimator=model,
+                X=self.X_train_sub,
+                y=self.y_train_sub,
+                cv=cv,
+                scoring=scoring,
+                groups= self.df.loc[self.train_idx].iloc[self.train_sub_idx]['patient_id'],  
+                n_jobs=-1,
+                train_sizes=np.linspace(0.1, 1.0, 10),
+                score_name=scoring_name
+                )
+            display.plot()
+            plt.title("Learning Curve for " + name + " (Scoring: " + scoring_name + ")")
+            plt.xlabel('Training Size')
+            plt.ylabel(scoring_name)
+            plt.legend(loc='best')
+            #plt.show()
+            plt.savefig(f"images/{name}_learning_curve.png", dpi=300, bbox_inches='tight')
+        self.scores_df = pd.concat(all_scores, ignore_index=True)
         
-        
-        print(f"[INFO] - classifier.py - Line 190 - Visualizing model: {model.__class__.__name__}")
-        print("X shape:", X.shape)
-        print("y shape:", y.shape)
-        if X.shape[1] > 2:
-            pca = PCA(n_components=2)
-            X_pca = pca.fit_transform(X)
-
-            
-        """   scaler = StandardScaler()
-        X_pca = scaler.fit_transform(X_pca)
-        print("X shape:", X.shape)
-        print("y shape:", y.shape)"""
-        
-        
-        # mesh grid
-        xx, yy = np.meshgrid(
-            np.linspace(X_pca[:, 0].min(), X_pca[:, 0].max(), 200),
-            np.linspace(X_pca[:, 1].min(), X_pca[:, 1].max(), 200)
-        )
-        
-        grid_points = np.c_[xx.ravel(), yy.ravel()]
-        
-        y_pred = model.predict(grid_points)
-        y_pred = np.reshape(y_pred, xx.shape)
-        
-        display_train = DecisionBoundaryDisplay(
-            xx0 = xx,
-            xx1 = yy,
-            response = y_pred
-        )
-        display_train.plot(std_display_style='fill_between')
-        plt.show()
-        plt.clf()
-        
-        
-            
-            
-            
-        y_pred = model.predict(X)
-        y_proba = np.round(model.predict_proba(X)[:, 1],3)
-        
-        # Plot ROC curve for hyperparameter tuning
-        fpr, tpr, _ = roc_curve(y, y_proba)
-        roc_auc = auc(fpr, tpr)
-        plt.figure(figsize=(8, 6))
-        plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'{name} (AUC = {roc_auc:.2f})')
-        plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
-        plt.xlim([0.0, 1.0])
-        plt.ylim([0.0, 1.05])
-        plt.xlabel('False Positive Rate')
-        plt.ylabel('True Positive Rate')
-        plt.title('Receiver Operating Characteristic (ROC) Curve')
-        plt.legend(loc='lower right')
-        plt.grid(True)
-        plt.tight_layout()
-        plt.show()
-        plt.clf()
-        
-        # Calibration curve
-        prob_true, prob_pred = calibration_curve(y, y_proba, n_bins=10)
-        plt.figure(figsize=(6, 5))
-        plt.plot(prob_pred, prob_true, marker='o')
-        plt.plot([0, 1], [0, 1], '--', color='gray')  # perfect calibration line
-        plt.title('Calibration Curve')
-        plt.xlabel('Predicted Probability')
-        plt.ylabel('Actual Probability')
-        plt.legend()
-        plt.grid(True)
-        plt.tight_layout()
-        plt.show()
-        plt.clf()
-        
-        # Learning curve
-        display = LearningCurveDisplay.from_estimator(
-            estimator=model,
-            X=self.X_train_sub,
-            y=self.y_train_sub,
-            cv=cv,
-            scoring=scoring,
-            n_jobs=-1,
-            train_sizes=np.linspace(0.1, 1.0, 10),
-            score_name=score_name
-            )
-        display.plot()
-        plt.title("Learning Curve for " + name + " (Scoring: " + score_name + ")")
-        plt.xlabel('Training Size')
-        plt.ylabel(score_name)
-        plt.legend(loc='best')
-        plt.show()
-        plt.clf()
-    
-
+        # Return the model results and probabilities
+        return model_results, probabilities
 
     def optimize_thresholds(self, scoring: str = 'f1') -> None:
         """
-        Optimize the classification thresholds for each trained model using TunedThresholdClassifierCV.
-        This method assumes that the models have been trained and are available in self.trained_models.
-        """
+            Optimize the classification thresholds for each trained model using TunedThresholdClassifierCV.
+            This method assumes that the models have been trained and are available in self.trained_models.
+
+            Param:
+                scoring (str): Scoring metric to optimize the thresholds (default is 'f1')
+                This can be any valid scoring metric supported by scikit-learn, such as 'roc_auc', 'accuracy', etc
         
-        thresholded_results = {}
-        thresholded_probabilities = pd.DataFrame({
-            'filename': self.df.loc[self.X_val.index, 'filename'],
-            'y_true': self.y_val
-        })
+            Returns:
+                model_results (dict): Dictionary containing the best thresholds and scores for each model
+                probabilities (dict): Dictionary containing predicted probabilities and labels for the validation set
+        """
+        # Check if 'self.df' exists before using it (it may not exist in the case of loaded models)
+        if hasattr(self, 'df') and self.df is not None:
+        # If self.df exists, use it to get the 'image_fname' column for display
+            probabilities = pd.DataFrame({
+                'image_fname': self.df.loc[self.X_val.index, 'image_fname'],
+                'y_true': self.y_val
+            })
+        else:
+            # If self.df does not exist, raise an error (should not happen as this is the training class' method)
+            raise ValueError("[ERROR] - classifier.py - 'df' is not available. Please ensure that the dataset is loaded before proceeding.")
+
+        model_results = {}
         
         for name, model in self.trained_models.items():
-            print(f"[INFO] Optimizing threshold for {name}.")
+            print(f"[INFO] - classifier.py - Optimizing threshold for {name}")
+            # Check if the model is fitted
+            if not hasattr(model, 'predict'):
+                print(f"[WARNING] - classifier.py - Model {name} is not fitted. Skipping evaluation.")
+                continue
+
+            # Initialize TunedThresholdClassifierCV with the prefit model
             tuner = TunedThresholdClassifierCV(
-                estimator=model, 
+                estimator=model,
                 scoring=scoring,
                 cv="prefit",
                 n_jobs=-1,
-                refit=False # Use prefit models,
-                
-                )
+                refit=False # Use prefit models
+            )
+            # Fit the tuner on the validation set
             tuner.fit(self.X_val, self.y_val)
-            self.trained_models[name] = tuner
+            self.trained_models[name] = tuner.estimator_
             
-            y_val_pred = tuner.predict(self.X_val)
+            # Predict the validation set using the tuned model
+            y_val_pred = tuner.estimator_.predict(self.X_val)
+            # Then store the predicted labels in the probabilities
+            probabilities[f"{name}_y_pred"] = y_val_pred
+
+            # Check if model supports predict_proba
+            if not hasattr(tuner, 'predict_proba'):
+                print(f"[WARNING] - classifier.py - Model {name} does not support predict_proba.")
+                continue
+            # Else, get the predicted probabilities
             y_val_proba = np.round(tuner.predict_proba(self.X_val)[:, 1],3)
-            thresholded_probabilities[f"{name}_y_pred"] = y_val_pred
-            thresholded_probabilities[f"{name}_y_proba"] = y_val_proba
+            # And store the predicted probabilities
+            probabilities[f"{name}_y_proba"] = y_val_proba
             
-            thresholded_results[name] = {
+            # Save the models optimization results
+            model_results[name] = {
                 "best_threshold": tuner.best_threshold_,
                 "scoring": scoring,
                 "best_score": tuner.best_score_,
                 "best_params": tuner.get_params()
             }
+
             # Plot Precision-Recall vs Threshold
             precision, recall, thresholds = precision_recall_curve(self.y_val, y_val_proba)
             plt.figure(figsize=(8, 6))
@@ -382,100 +612,54 @@ class Classifier:
             plt.ylabel('Score')
             plt.title(f'Precision-Recall vs Threshold for {name}')
             plt.legend(loc='best')
-            plt.show()
+            #plt.show()
+            plt.savefig(f"images/{name}_precision_recall_vs_threshold.png", dpi=300, bbox_inches='tight')
+
         
-            
-            
-            
-        self._save_results_probabilities(thresholded_results, thresholded_probabilities, "threshold")
-
-
-    def train_on_full(self) -> None:
-        """
-        Train the classifiers on the full training set (train_sub + val) and save them to trained_models.
-        This method assumes that the model is already fitted with hyperparameters and optimized thresholds.
-        """
-        for name, model in self.trained_models.items():
-            model = clone(model)  # Clone the model to avoid modifying the original
-            print(f"[INFO] - classifier.py - Line 205 - Training {name} on full training set.")
-            model.fit(self.X_train, self.y_train)
-            self.trained_models[f"{name}_fulltrained"] = model
-        
-
+        # Lastly, return the model results and probabilities (eg. for saving)
+        return model_results, probabilities
     
+class LoadClassifier(Classifier):
+    def __init__(self, model_path: str, output_path: str = None):
+        """
+            Child class for loading pre-trained models and making predictions
 
-    def evaluate_classifiers(self) -> None:
+            Parent class: Classifier
+                Methods:
+                - evaluate_classifiers(X_test: pd.DataFrame, y_test: pd.Series) -> None: Evaluates the trained classifiers on the test set
+                - make_predictions(X_new: pd.DataFrame) -> dict: Make predictions using the loaded models
+                - save_models() -> None: Save the trained models to disk
+                - save_probabilities(results, probabilities, type: str) -> None: Save results and probabilities to CSV/JSON
+                - visualize(model: BaseEstimator, X: pd.DataFrame, y: pd.Series, X_val: pd.DataFrame, y_val: pd.DataFrame) -> None: Visualize model decision boundaries
+                - visualize_CV_boxplots(scoring: str) -> None: Visualize the cross-validation scores using boxplots
+                
+            Parameters:
+                model_path (str): Path to the directory containing the pre-trained models
+                output_path (str): Path to save the results or predictions
+            
+            Methods:
+                load_models(model_path: str) -> None: Load pre-trained models from the specified directory
         """
-        Evaluate the trained classifier with optional thresholds on the test set and store the results.
-        If the classifier is not trained, it raises an error.
+        super().__init__(output_path)
+        self.load_models(model_path)
+
+    def load_models(self, model_path: str) -> None:
         """
-        
-        final_probabilities = pd.DataFrame({
-            'filename': self.df.loc[self.X_test.index, 'filename'],
-            'y_true': self.y_test
-        })
-        final_results = {}
-        
-        for name, model in self.trained_models.items():
-            print( f"[INFO] - classifier.py - Line 220 - Evaluating classifier: {name}")    
-            
-            y_pred = model.predict(self.X_test)
-            y_proba = np.round(model.predict_proba(self.X_test)[:, 1], 3)
-            
-            final_probabilities[f"{name}_y_pred"] = y_pred
-            final_probabilities[f"{name}_y_proba"] = y_proba
-            
-            final_results[name] = {
-                'accuracy': accuracy_score(self.y_test, y_pred),
-                'precision': precision_score(self.y_test, y_pred),
-                'recall': recall_score(self.y_test, y_pred),
-                'f1': f1_score(self.y_test, y_pred),
-                'roc_auc': roc_auc_score(self.y_test, y_proba),
-                'threshold': model.best_threshold_ if hasattr(model, 'best_threshold_') else None,
-                "roc_auc": roc_auc_score(self.y_test, y_proba)
-            }
-        
-        
-            print("[INFO] - classifier.py - Line 245 - Evaluation results for", name)
-            print(classification_report(self.y_test, y_pred))
-            
-            
-        assert all(final_probabilities['y_true'] == self.y_test.loc[self.X_test.index].values)
-        # Save the final results to a CSV file
-        self._save_results_probabilities(final_results, final_probabilities, "final")
-    
-    def _save_results_probabilities(self, results, probabilities, type: str) -> None:
-        
-        # Save the probabilities of the classifier evalution to a CSV file
-        output_file = os.path.join(self.output_path, f"{type}_probabilities.csv")
-        probabilities.to_csv(output_file, index=False)
-        print(f"[INFO] - classifier.py - Line 278 - {type} probabilities saved to {output_file}")
-        
-        # Save the results of the classifier evaluations to a JSON file
-        output_file = os.path.join(self.output_path, f"{type}_results.json")
-        with open(output_file, 'w') as f:
-            json.dump(results, f, indent=4, default=str)
-        print(f"[INFO] - classifier.py - Line 284 - {type} results saved to {output_file}")
-        
-        
-        
-    def save_model(self, model: BaseEstimator, name: str) -> None:
+            Load pre-trained models from the specified directory
         """
-        Save a trained model to a file.
-        Args:
-            model (BaseEstimator): The trained model to save.
-            name (str): The name of the model for saving.
-        """
-        if not self.output_path:
-            raise ValueError("Output path is not set.")
+        print(f"[INFO] - classifier.py - Loading models from {model_path}")
+        # Load all model files from the specified directory ending with .pkl
+        model_files = [f for f in os.listdir(model_path) if f.endswith(".pkl")]
+        # If no models found, raise an error
+        if not model_files:
+            raise FileNotFoundError(f"[ERROR] - classifier.py - No model files found in {model_path}. Please check the path or ensure models are saved.")
         
-        output_file = os.path.join(self.output_path, f"{name}_model.pkl")
-        with open(output_file, 'wb') as f:
-            joblib.dump(model, f)
-        print(f"[INFO] - classifier.py - Line 262 - Model {name} saved to {output_file}")
-        
-        
-    def load_trained_model(self, name: str) -> BaseEstimator:
-        model_path = os.path.join(self.output_path, f"{name}_best_model.pkl")
-        self.trained_models[name] = joblib.load(model_path)
-        print(f"[INFO] - classifier.py - Line 280 - Loaded model {name} from {model_path}")
+        # Else load each model and store it in the trained_models dictionary
+        for model_file in model_files:
+            # Extract model name from the filename (assuming format like "model_name.pkl")
+            model_name = model_file.split(".")[0]
+            model_full_path = os.path.join(model_path, model_file)
+            # Load the model using joblib
+            self.trained_models[model_name] = joblib.load(model_full_path)
+            # Print confirmation message
+            print(f"[INFO] - Loaded model {model_name} from {model_full_path}")
