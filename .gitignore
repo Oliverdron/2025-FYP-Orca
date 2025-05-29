@@ -179,3 +179,8 @@ data/
 
 #ignore annotation analysis, as it is not required in the hierarchy
 util/annotation_analysis_util.py
+
+
+# Ignore test files and directories
+result/testing/
+images

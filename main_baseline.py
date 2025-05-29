@@ -56,7 +56,11 @@ def main():
     )
     
     # 7) Visualize the results of hyperparameter tuning and training
+<<<<<<< Updated upstream
     clf.visualize(clf.X_val, clf.y_val)
+=======
+    clf.visualize(clf.X_val, clf.y_val, "training")
+>>>>>>> Stashed changes
     clf.visualize_CV_boxplots("roc_auc")
     
     
@@ -75,7 +79,11 @@ def main():
     )
     
     # 10) Visualize the results of evaluation
+<<<<<<< Updated upstream
     clf.visualize(clf.X_test, clf.y_test)
+=======
+    clf.visualize(clf.X_test, clf.y_test, "final")
+>>>>>>> Stashed changes
 
     
     # 11) Save the trained models to disk
