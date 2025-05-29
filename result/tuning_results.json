@@ -1,24 +1,24 @@
 {
     "mlp": {
-        "best_score": 0.5633951633936384,
-        "scoring": "roc_auc",
+        "best_score": 0.6388831733314918,
         "best_params": {
-            "clf__activation": "relu",
-            "clf__alpha": 0.01,
-            "clf__batch_size": 64,
+            "clf__learning_rate_init": 0.001,
             "clf__hidden_layer_sizes": [
-                128,
-                64
+                64,
+                32
             ],
-            "clf__learning_rate_init": 0.001
+            "clf__batch_size": 64,
+            "clf__alpha": 0.001,
+            "clf__activation": "relu"
         }
     },
     "lr": {
-        "best_score": 0.4519623752734837,
-        "scoring": "roc_auc",
+        "best_score": 0.629054615948896,
         "best_params": {
-            "clf__C": 0.001,
-            "clf__l1_ratio": 0
+            "clf__solver": "liblinear",
+            "clf__penalty": "l2",
+            "clf__max_iter": 100,
+            "clf__C": 0.01
         }
     }
 }
