@@ -1,60 +1,97 @@
-""" Main script for running baseline experiments with selected basic classifiers and  A, B, C features.
-    """
-
-
-
 from util import (
     Path, pd, os, np,
-    Classifier,
+    LoadClassifier, TrainClassifier,
     Dataset,
     get_base_dir,
     ALL_CLASSIFIERS,
     ALL_FEATURES,
-    ALL_PARAM_GRIDS,
+    ALL_PARAM_DISTR
 )
 
 # ── Feature extraction ────────────────────────────────────────────────────
-SELECTED_FEATURES = ["feat_A", "feat_B", "feat_C"]  # Choose a subset by name
+SELECTED_FEATURES = ["feat_A", "feat_B", "feat_C", "feat_D", "feat_E", "feat_F"]  # Choose a subset by name
 FEATURES = {k: ALL_FEATURES[k] for k in SELECTED_FEATURES}
-
 
 # ── Classifiers ──────────────────────────────────────────────────────────────
 SELECTED_CLASSIFIERS = ["mlp","lr"] # Choose a subset by name
 CLASSIFIERS = {k: ALL_CLASSIFIERS[k] for k in SELECTED_CLASSIFIERS}
 
-
-
-# ── Hyperparameter grids ───────────────────────────────────────────────────
-PARAM_GRIDS = {k: ALL_PARAM_GRIDS[k] for k in SELECTED_CLASSIFIERS}
-
+# ── Hyperparameter distributions ───────────────────────────────────────────────────
+PARAM_DISTR = {k: ALL_PARAM_DISTR[k] for k in SELECTED_CLASSIFIERS}
 
 
 def main():
     # 1) Retrieve the absolute path to the directory containing this script
     base = get_base_dir(Path(__file__))
-    
+
     # 2) Set up result output path
     output_path = base / "result"
-    
+
     # 3) Build Dataset so we can train/evaluate/test our model directly (this also calls Record.load() for each image)
     # This should only run if the dataset.csv file does not exist yet, as the dataset.csv file should contain the extracted feature values
     if not os.path.exists(os.path.join(base, "dataset.csv")):
         print("[INFO] - main_demo.py - Dataset not found, creating new one")
-        ds = Dataset(feature_extractors=FEATURES, base_dir=base)
+        Dataset(feature_extractors=FEATURES, base_dir=base)
 
-    # 4) Pass the Dataset to the classifier model for training and evaluation
-    clf = Classifier(
-        base,
-        list(FEATURES.keys()),
-        CLASSIFIERS,
-        test_size=0.2,
-        random_state=42,
+    # 4) Initialize and set up the classifier
+    # (FLAG THE INCORRECTLY CLASSIFIED SAMPLE ("most incorrect" ones) -> any patterns?)
+    # Create the TrainClassifier object for training models from scratch
+    clf = TrainClassifier(
+        base_dir=base,
+        feature_names=list(FEATURES.keys()),
+        classifiers=CLASSIFIERS,
         output_path=output_path
     )
+
+    # 5) Load and split data into train, validation, and test sets
     clf.load_split_data()
-    clf.hyperparameter_tuning(PARAM_GRIDS, scoring="roc_auc")  
-    clf.optimize_thresholds(scoring="roc_auc")  
     
     
+    
+    # 6) Hyperparameter tuning and training (RandomizedSearchCV) on the classifiers
+    # Then, save the results and probabilities from hyperparameter tuning and training
+    clf.save_result_and_probabilities(
+        *clf.training_hyperparameter_tuning(PARAM_DISTR, scoring="roc_auc"),
+        type="tuning"
+    )
+    
+    # 7) Visualize the results of hyperparameter tuning and training
+    clf.visualize(clf.X_val, clf.y_val)
+    clf.visualize_CV_boxplots("roc_auc")
+    
+    
+    
+    # 8) Optimize classification thresholds (TunedThresholdClassifierCV)
+    # Then, save the results and probabilities from threshold optimization
+    clf.save_result_and_probabilities(
+        *clf.optimize_thresholds(scoring="roc_auc"),
+        type="threshold"
+    )
+    
+    # 9) Evaluate classifiers (Evaluates on the test set)
+    clf.save_result_and_probabilities(
+        *clf.evaluate_classifiers(clf.X_test, clf.y_test),
+        type="evaluation"
+    )
+    
+    # 10) Visualize the results of evaluation
+    clf.visualize(clf.X_test, clf.y_test)
+
+    
+    # 11) Save the trained models to disk
+    clf.save_models()
+
+
+"""    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    model.fit(hierarchicalClassifier.X, hierarchicalClassifier.Y_binary)
+    importances = pd.Series(model.feature_importances_, index=hierarchicalClassifier.X.columns)
+    importances = importances.sort_values(ascending=False)
+
+    # Plot feature importances
+    importances[:2].plot(kind='barh')
+    plt.gca().invert_yaxis()
+    plt.title(f"Top {2} Features by Random Forest Importance")
+    plt.show()"""
+
 if __name__ == "__main__":
     main()
