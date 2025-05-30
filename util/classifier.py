@@ -670,7 +670,7 @@ class TrainClassifier(Classifier):
         return model_results, probabilities
     
 class LoadClassifier(Classifier):
-    def __init__(self, model_path: str, output_path: str = None):
+    def __init__(self, model_path: str, output_path: str = None, base_dir: str = None, feature_names: list = None):
         """
             Child class for loading pre-trained models and making predictions
 
@@ -691,6 +691,8 @@ class LoadClassifier(Classifier):
                 load_models(model_path: str) -> None: Load pre-trained models from the specified directory
         """
         super().__init__(output_path)
+        self.base_dir = base_dir
+        self.feature_names = feature_names
         self.load_models(model_path)
 
     def load_models(self, model_path: str) -> None:
@@ -713,3 +715,27 @@ class LoadClassifier(Classifier):
             self.trained_models[model_name] = joblib.load(model_full_path)
             # Print confirmation message
             print(f"[INFO] - Loaded model {model_name} from {model_full_path}")
+            
+    def load_dataset(self, source: str = "dataset.csv", label_col: str = 'label_binary', patient_col: str = 'patient_id') -> None:
+        """
+            Load the dataset from the specified CSV file and prepare the features and labels for evaluation
+
+            Param:
+                source (str): Path to the dataset CSV file (default is "dataset.csv")
+                label_col (str): Name of the column containing the labels (default is 'label_binary')
+                patient_col (str): Name of the column containing patient IDs for stratified splitting (default is 'patient_id')
+        """
+        print(f"[INFO] - classifier.py - Loading dataset from {source}")
+        # Check if the path with source exists
+        if not os.path.exists(os.path.join(self.base_dir, source)):
+            raise FileNotFoundError(f"[ERROR] - classifier.py - Dataset file {source} not found in {self.base_dir}. Please check the path or ensure the dataset is available.")
+        
+        # Read the dataset from the specified CSV file
+        self.df = pd.read_csv(os.path.join(self.base_dir, source))
+        # Seperate features and labels (features on the X-axis, labels on the Y-axis)
+        self.X = self.df[self.feature_names]
+        self.y = self.df[label_col]
+        # Store the indices of all samples for later use
+        self.all_idx = self.df.index.tolist()
+        
+        print(f"[INFO] - classifier.py - Finished loading dataset")

@@ -8,7 +8,7 @@ This project implements a complete modular pipeline for lesion image analysis, f
 #### 2. The program:
 - Loads RGB images and corresponding lesion masks (if `dataset.csv` does not exist, it will create one using `metdata.csv`)
 - Applies pre-processing methods on the images
-- Extracts up to six features (features A–F and exports them to `dataset.csv`)
+- Extracts up to six features (A to F and exports them to `dataset.csv`)
 - Trains and evaluates classifiers (based on `dataset.csv`) with cross-validation and hyperparameter tuning
 - Exports detailed probability and metric files along with saved model objects
 
@@ -23,46 +23,68 @@ The following steps will help you set up the environment and run the code.
 - Activate the virtual environment: > venv\Scripts\activate
 - Install the required libraries: > pip install -r requirements.txt
 - Run the scripts: > python main_baseline.py
+- Alternatively, you can use environment.yml with conda
 
 > If updates were made to the libraries, you can export by `pip freeze > requirements.txt`.
 
-#### 4. File Hierarchy
+#### 4. Test outer source using loaded trained models
+If you want to test already trained models on your dataset, you can do that using the LoadClassifier
+class from classifier.py.
+The following steps should be followed.
+
+- Remove any models that do not correspond to the name of the main file(extended/baseline) from result/models
+- Delete the dataset.csv from base directory
+- In one of the main files, delete everything from main after clf=TrainClassifier line until the end of main
+- Initialize a LoadClassifier object with model_path(base/"result"/"models"),
+  output_path,base_dir(base) and feature_names(list(FEATURES.keys()))
+- Load dataset using load_dataset(source="dataset.csv")
+- Put in the following line:
+    clf.save_result_and_probabilities(*clf.evaluate_classifiers(clf.X_test, clf.y_test),*clf.evaluate_classifiers(clf.X, clf.y),type="baseline",save_visible=True)
+- After this the results and the probabilities should be made in the result folder for each models.
+- You can create plots using: clf.visualize(clf.X, clf.y, "name")
+
+#### 5. File Hierarchy
 
 **The program was designed and tested to run in the following structure.**
 *Modifications to the file structure may lead to errors.*
 
 ```
 2025-FYP/
-├── data/                        # unzip the dataset and put it here (uploading data is ignored by git)
-│   ├── images/                  # all images
-│   └── lesion_masks/            # all lesion masks
+├── data/                           # unzip the dataset and put it here (uploading data is ignored by git)
+│   ├── images/                     # all images
+│   └── lesion_masks/               # all lesion masks
 │ 
 ├── result/
-│   ├── result_baseline.csv      # results on the baseline setup
-│   ├── result_extended.csv      # results on the extended setup
-│   └── report.pdf               # the report in PDF
+│   ├── model/                      # trained models of the baseline and extended setup(.pkl files)
+│   ├── probabilities_baseline.csv  # probabilities of the baseline setup
+│   ├── probabilities_extended.csv  # probabilities of the extended setup
+│   ├── result_baseline.csv         # results of the baseline setup
+│   ├── result_extended.csv         # results of the extended setup
+│   └── report.pdf                  # the report in PDF
 │ 
 ├── util/
-│   ├── __init__.py              # package initialization file
-│   ├── inpaint.py               # image inpainting function
-│   ├── classifier.py            # code for training, validating, and testing the classifier
-│   ├── feature_A.py             # feature A extraction
-│   ├── feature_B.py             # feature B extraction
-│   ├── feature_C.py             # feature C extraction
-│   ├── feature_D.py             # feature D extraction
-│   ├── feature_E.py             # feature E extraction
-│   ├── feature_F.py             # feature F extraction
-│   ├── img_preprocess.py        # image preprocessing functions
-│   └── img_util.py              # basic image read and write functions
+│   ├── __init__.py                 # package initialization file
+│   ├── inpaint.py                  # image inpainting function
+│   ├── classifier.py               # code for training, validating, and testing the classifier
+│   ├── feature_A.py                # feature A extraction
+│   ├── feature_B.py                # feature B extraction
+│   ├── feature_C.py                # feature C extraction
+│   ├── feature_D.py                # feature D extraction
+│   ├── feature_E.py                # feature E extraction
+│   ├── feature_F.py                # feature F extraction
+│   ├── img_preprocess.py           # image preprocessing functions
+│   └── img_util.py                 # basic image read and write functions
 │ 
-├── dataset.csv                  # all image file names, mask names, ground-truth labels and the extracted feature values (A to F)
-├── main_baseline.py             # complete script (baseline setup)
-├── main_extended.py             # complete script (extended setup)
-├── metadata.csv                 # all image file names, mask names and ground-truth labels
-└── README.md
+├── dataset.csv                     # all image file names, mask names, ground-truth labels and the extracted feature values
+├── environment.yml                 # required libraries needed for conda installation
+├── main_baseline.py                # complete script (baseline setup)
+├── main_extended.py                # complete script (extended setup)
+├── metadata.csv                    # all image file names, mask names and ground-truth labels
+├── README.md
+└── requirements.txt                # required libraries needed for pip installation
 ```
 
-#### 5. Datasets
+#### 6. Datasets
 
 The `metadata.csv` file contains metadata for each image in the dataset, structured as follows:
 *It is used to load the images and masks by the img_util.py to **extract the feature values***
