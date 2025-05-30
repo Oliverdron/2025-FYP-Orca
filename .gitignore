@@ -174,8 +174,11 @@ cython_debug/
 .DS_Store
 
 #ignore images in data but not annotations
-data/
-!data/annotation/
+data/**
+!data/images/
+!data/annotations/
+data/images/**
+data/annotations/**
 
 #ignore annotation analysis, as it is not required in the hierarchy
 util/annotation_analysis_util.py

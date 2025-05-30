@@ -1,72 +1,96 @@
 # Projects in Data Science (2025)
+> Final Assignment
 
-Final Assignment
+#### 1. Introduction
 
+This project implements a complete modular pipeline for lesion image analysis, from raw data loading through preprocessing, feature extraction, model training, and evaluation.
 
+#### 2. The program:
+- Loads RGB images and corresponding lesion masks (if `dataset.csv` does not exist, it will create one using `metdata.csv`)
+- Applies pre-processing methods on the images
+- Extracts up to six features (features A–F and exports them to `dataset.csv`)
+- Trains and evaluates classifiers (based on `dataset.csv`) with cross-validation and hyperparameter tuning
+- Exports detailed probability and metric files along with saved model objects
 
-#### Overview
+#### 3. Run the program
+The code requires several libraries. Therefore, it uses a virtual environment to manage dependencies.\
+The following steps will help you set up the environment and run the code.
 
-This is a template repository for the final assignment of course "Projects in Data Science." You should refer to this repository in your final hand-in.
+> Run the provided code (after the '>') in a terminal or command prompt.
+- Clone the repository: > git clone https://github.com/Oliverdron/2025-FYP-Orca
+- Change directory to the project folder: > cd (absolute path to the cloned repository)
+- Activate the virtual environment: > python -m venv venv
+- Activate the virtual environment: > venv\Scripts\activate
+- Install the required libraries: > pip install -r requirements.txt
+- Run the scripts: > python main_baseline.py
 
-If using github.itu.dk, you need to download the repository and make your own. 
+> If updates were made to the libraries, you can export by `pip freeze > requirements.txt`.
 
-If you are using general Github, you can clone or fork the repository directly. If your usernames do not give sufficient hints as to who you are, you can tell the TAs how to match them. 
+#### 4. File Hierarchy
 
-Your repository MUST be named 2025-FYP-groupXX where XX is your group number. 
-
-Look at the slides of the previous two weeks for details of the hand-in. 
-
-
-
-#### Python environment
-
-Follow TA instructions when setting up the Python environment before running any code. Remember to export your Python library requirements by `pip freeze > requirements.txt` and attach it to the repo so we can evaluate your scripts.
-
-
-
-#### File Hierarchy
-
-The file hierarchy of your hand-in repo should be as follows:
+**The program was designed and tested to run in the following structure.**
+*Modifications to the file structure may lead to errors.*
 
 ```
 2025-FYP/
-├── data/               # unzip the dataset and put it here (remove in your hand-in)
-│   ├── img_001.jpg
-│   ......
-│   └── img_XXX.jpg
-│ 
-├── util/
-│   ├── __init__.py
-│   ├── img_util.py     # basic image read and write functions
-│   ├── inpaint.py      # image inpainting function
-│   ├── feature_A.py    # code for feature A extraction
-│   ├── feature_B.py    # code for feature B extraction
-│   ├── feature_C.py    # code for feature C extraction
-│   ......
-│   └── classifier.py   # code for training, validating, and testing the classifier
+├── data/                        # unzip the dataset and put it here (uploading data is ignored by git)
+│   ├── images/                  # all images
+│   └── lesion_masks/            # all lesion masks
 │ 
 ├── result/
-│   ├── result_baseline.csv      # your results on the baseline setup
-│   ├── result_extended.csv      # your results on the extended setup
-│   └── report.pdf      		 # your report in PDF
+│   ├── result_baseline.csv      # results on the baseline setup
+│   ├── result_extended.csv      # results on the extended setup
+│   └── report.pdf               # the report in PDF
 │ 
-├── main_demo.py		# demo script (reference setup, remove in your hand-in)
-├── main_baseline.py	# complete script (baseline setup)
-├── main_extended.py	# complete script (extended setup)
-├── dataset.csv    		# all image file names, ground-truth labels, and chosen features
+├── util/
+│   ├── __init__.py              # package initialization file
+│   ├── inpaint.py               # image inpainting function
+│   ├── classifier.py            # code for training, validating, and testing the classifier
+│   ├── feature_A.py             # feature A extraction
+│   ├── feature_B.py             # feature B extraction
+│   ├── feature_C.py             # feature C extraction
+│   ├── feature_D.py             # feature D extraction
+│   ├── feature_E.py             # feature E extraction
+│   ├── feature_F.py             # feature F extraction
+│   ├── img_preprocess.py        # image preprocessing functions
+│   └── img_util.py              # basic image read and write functions
+│ 
+├── dataset.csv                  # all image file names, mask names, ground-truth labels and the extracted feature values (A to F)
+├── main_baseline.py             # complete script (baseline setup)
+├── main_extended.py             # complete script (extended setup)
+├── metadata.csv                 # all image file names, mask names and ground-truth labels
 └── README.md
 ```
 
+#### 5. Datasets
 
+The `metadata.csv` file contains metadata for each image in the dataset, structured as follows:
+*It is used to load the images and masks by the img_util.py to **extract the feature values***
+```
+patient_id: unique identifier (e.g. PAT_1516)
+image_path: filename under data/images/
+mask_path: filename under data/lesion_masks/ (*blank if unavailable*)
+label: categorical labels (eg.: NEV, BCC, MEL, SCC, ACK)
+```
 
-**Notes:**
+The `dataset.csv` file contains metadata for each image in the dataset, structured as follows:
+*It is used by the classifier.py to **train and evaluate the classifiers***
+```
+patient_id: unique identifier (e.g. PAT_1516)
+image_fname: filename under data/images/
+label_binary: ground-truth True (*indicating cancer*), False (*otherwise*) based on the categorical label
+mask_fname: filename under data/lesion_masks/ (*blank if unavailable*)
+feat_A to feat_F: extracted feature values
+```
 
-1. DO NOT upload your data (images) to Github.
-2. When the same code block needs to be executed multiple times in the script, make it a custom function instead. All the custom functions and modules, such as image read and write, should be grouped into different files under the *"util"* subfolder, based on the task they are designed for. Do not put everything in a single Python file or copy-paste the same code block across the script.
-
-
-
-
-
-
-
+**Note:**
+For clarification, here are the usernames and real-names of the contributors:
+```
+|   Username   |    Real Name     |
+|:------------:|:----------------:|
+|   mindenki   |    Anis Kadem    |
+|  Oliverdron  |  Olivér Gyimóthy |
+|   RudraKau   |   Rudra Kaushik  |
+|    Etele8    |   Etele Kovács   |
+| brute-yanka  |    Péter Ónadi   |
+```

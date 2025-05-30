@@ -1,5 +1,5 @@
-import re
 from util.img_util import Record
+
 from util import (
     np,
     cv2,

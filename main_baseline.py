@@ -19,7 +19,6 @@ CLASSIFIERS = {k: ALL_CLASSIFIERS[k] for k in SELECTED_CLASSIFIERS}
 # ── Hyperparameter distributions ───────────────────────────────────────────────────
 PARAM_DISTR = {k: ALL_PARAM_DISTR[k] for k in SELECTED_CLASSIFIERS}
 
-
 def main():
     # 1) Retrieve the absolute path to the directory containing this script
     base = get_base_dir(Path(__file__))
@@ -46,8 +45,6 @@ def main():
     # 5) Load and split data into train, validation, and test sets
     clf.load_split_data()
     
-    
-    
     # 6) Hyperparameter tuning and training (RandomizedSearchCV) on the classifiers
     # Then, save the results and probabilities from hyperparameter tuning and training
     clf.save_result_and_probabilities(
@@ -58,8 +55,6 @@ def main():
     # 7) Visualize the results of hyperparameter tuning and training
     clf.visualize(clf.X_val, clf.y_val, "training")
     clf.visualize_CV_boxplots("roc_auc")
-    
-    
     
     # 8) Optimize classification thresholds (TunedThresholdClassifierCV)
     # Then, save the results and probabilities from threshold optimization
