@@ -6,10 +6,10 @@
 This project implements a complete modular pipeline for lesion image analysis, from raw data loading through preprocessing, feature extraction, model training, and evaluation.
 
 #### 2. The program:
-- Loads RGB images and corresponding lesion masks (if `dataset.csv` does not exist, it will create one using `metdata.csv`)
-- Applies pre-processing methods on the images
-- Extracts up to six features (A to F and exports them to `dataset.csv`)
-- Trains and evaluates classifiers (based on `dataset.csv`) with cross-validation and hyperparameter tuning
+- **Loads RGB images** and corresponding lesion masks (if `dataset.csv` does not exist, it will create one using `metdata.csv`)
+- Applies **pre-processing** methods on the images
+- Extracts up to six **features** (A to F and exports them to `dataset.csv`)
+- Trains and **evaluates classifiers** (based on `dataset.csv`) with cross-validation and hyperparameter tuning
 - Exports detailed probability and metric files along with saved model objects
 
 #### 3. Run the program
@@ -17,13 +17,13 @@ The code requires several libraries. Therefore, it uses a virtual environment to
 The following steps will help you set up the environment and run the code.
 
 > Run the provided code (after the '>') in a terminal or command prompt.
-- Clone the repository: > git clone https://github.com/Oliverdron/2025-FYP-Orca
-- Change directory to the project folder: > cd (absolute path to the cloned repository)
-- Activate the virtual environment: > python -m venv venv
-- Activate the virtual environment: > venv\Scripts\activate
-- Install the required libraries: > pip install -r requirements.txt
-- Run the scripts: > python main_baseline.py
-- Alternatively, you can use environment.yml with conda
+- Clone the repository: > `git clone https://github.com/Oliverdron/2025-FYP-Orca`
+- Change directory to the project folder: > `cd (absolute path to the cloned repository)`
+- Activate the virtual environment: > `python -m venv venv`
+- Activate the virtual environment: > `venv\Scripts\activate`
+- Install the required libraries: > `pip install -r requirements.txt`
+- Run the scripts: > `python main_baseline.py`
+- Alternatively, you can use **environment.yml** with conda
 
 > If updates were made to the libraries, you can export by `pip freeze > requirements.txt`.
 
@@ -33,15 +33,22 @@ class from classifier.py.
 The following steps should be followed.
 
 - Remove any models that do not correspond to the name of the main file(extended/baseline) from result/models
-- Delete the dataset.csv from base directory
-- In one of the main files, delete everything from main after clf=TrainClassifier line until the end of main
-- Initialize a LoadClassifier object with model_path(base/"result"/"models"),
-  output_path,base_dir(base) and feature_names(list(FEATURES.keys()))
-- Load dataset using load_dataset(source="dataset.csv")
+- Delete the `dataset.csv` from base directory
+- In one of the main files (eg. `main_baseline.py`), delete everything after **clf=TrainClassifier** line until the end of main
+- Initialize a `LoadClassifier` object with:
+    `model_path(base/"result"/"models"),`
+    `output_path,base_dir(base),`
+    `feature_names(list(FEATURES.keys()))` parameters
+- Load dataset using `load_dataset(source="dataset.csv")`
 - Put in the following line:
-    clf.save_result_and_probabilities(*clf.evaluate_classifiers(clf.X_test, clf.y_test),*clf.evaluate_classifiers(clf.X, clf.y),type="baseline",save_visible=True)
-- After this the results and the probabilities should be made in the result folder for each models.
-- You can create plots using: clf.visualize(clf.X, clf.y, "name")
+    `clf.save_result_and_probabilities(`
+    `    *clf.evaluate_classifiers(clf.X_test, clf.y_test),`
+    `    *clf.evaluate_classifiers(clf.X, clf.y),`
+    `    type="baseline",`
+    `    save_visible=True`
+    `)`
+- After this, the results and the probabilities should be made in the result folder for each models.
+- You can create plots using: `clf.visualize(clf.X, clf.y, "name")`
 
 #### 5. File Hierarchy
 
@@ -55,11 +62,11 @@ The following steps should be followed.
 │   └── lesion_masks/               # all lesion masks
 │ 
 ├── result/
-│   ├── model/                      # trained models of the baseline and extended setup(.pkl files)
+│   ├── models/                     # trained models of the baseline and extended setup(.pkl files)
 │   ├── probabilities_baseline.csv  # probabilities of the baseline setup
 │   ├── probabilities_extended.csv  # probabilities of the extended setup
-│   ├── result_baseline.csv         # results of the baseline setup
-│   ├── result_extended.csv         # results of the extended setup
+│   ├── results_baseline.json       # results of the baseline setup
+│   ├── results_extended.json       # results of the extended setup
 │   └── report.pdf                  # the report in PDF
 │ 
 ├── util/
