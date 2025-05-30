@@ -1,7 +1,8 @@
 from util import (
-    Path, pd, os, np,
+    Path, pd, os, np, plt,
     LoadClassifier, TrainClassifier,
     Dataset,
+    permutation_importance,
     get_base_dir,
     ALL_CLASSIFIERS,
     ALL_FEATURES,
@@ -9,15 +10,18 @@ from util import (
 )
 
 # ── Feature extraction ────────────────────────────────────────────────────
-SELECTED_FEATURES = ["feat_A", "feat_B", "feat_C", "feat_D", "feat_E", "feat_F"]  # Choose a subset by name
+SELECTED_FEATURES = ["feat_A","feat_B","feat_C","feat_D","feat_E","feat_F"]  # Choose a subset by name
 FEATURES = {k: ALL_FEATURES[k] for k in SELECTED_FEATURES}
 
 # ── Classifiers ──────────────────────────────────────────────────────────────
-SELECTED_CLASSIFIERS = ["mlp","lr"] # Choose a subset by name
+SELECTED_CLASSIFIERS = ["lr","svc","mlp"] # Choose a subset by name
 CLASSIFIERS = {k: ALL_CLASSIFIERS[k] for k in SELECTED_CLASSIFIERS}
 
 # ── Hyperparameter distributions ───────────────────────────────────────────────────
 PARAM_DISTR = {k: ALL_PARAM_DISTR[k] for k in SELECTED_CLASSIFIERS}
+
+
+
 
 
 def main():
@@ -46,40 +50,44 @@ def main():
     # 5) Load and split data into train, validation, and test sets
     clf.load_split_data()
     
-    
+    scoring= "roc_auc"  # Define the scoring metric for evaluation
     
     # 6) Hyperparameter tuning and training (RandomizedSearchCV) on the classifiers
     # Then, save the results and probabilities from hyperparameter tuning and training
     clf.save_result_and_probabilities(
-        *clf.training_hyperparameter_tuning(PARAM_DISTR, scoring="roc_auc"),
-        type="tuning"
+        *clf.training_hyperparameter_tuning(PARAM_DISTR, scoring=scoring),
+        type="training_tuning"
     )
     
     # 7) Visualize the results of hyperparameter tuning and training
     clf.visualize(clf.X_val, clf.y_val, "training")
-    clf.visualize_CV_boxplots("roc_auc")
-    
+    clf.visualize_CV_boxplots(scoring)
+    # Create an importance plot for the features used in the classifiers
+    clf.create_importance_dashboard(clf.X_val, clf.y_val, FEATURES)
     
     
     # 8) Optimize classification thresholds (TunedThresholdClassifierCV)
     # Then, save the results and probabilities from threshold optimization
     clf.save_result_and_probabilities(
-        *clf.optimize_thresholds(scoring="roc_auc"),
+        *clf.optimize_thresholds(scoring=scoring),
         type="threshold"
     )
     
     # 9) Evaluate classifiers (Evaluates on the test set)
     clf.save_result_and_probabilities(
         *clf.evaluate_classifiers(clf.X_test, clf.y_test),
-        type="evaluation"
+        type="extended",
+        save_visible=True,
     )
     
+    
+    
     # 10) Visualize the results of evaluation
-    clf.visualize(clf.X_test, clf.y_test, "final")
+    clf.visualize(clf.X_test, clf.y_test, "result_extended")
 
     
     # 11) Save the trained models to disk
-    clf.save_models()
+    clf.save_models("extended")
 
 
 if __name__ == "__main__":

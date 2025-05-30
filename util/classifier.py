@@ -1,13 +1,13 @@
 from util import (
     joblib, json, np, os, pd, plt, sns,
     StratifiedGroupKFold, BaseEstimator,
-    RandomizedSearchCV, LearningCurveDisplay,
+    GridSearchCV, RandomizedSearchCV, LearningCurveDisplay,
     StandardScaler, TunedThresholdClassifierCV,
     Pipeline, PCA, DecisionBoundaryDisplay,
     accuracy_score, roc_curve, auc, precision_recall_curve,
     confusion_matrix, classification_report, calibration_curve,
-    clone, precision_score, recall_score,
-    f1_score, roc_auc_score
+    clone, precision_score, recall_score, permutation_importance,
+    f1_score, roc_auc_score, 
 )
 
 class Classifier:
@@ -109,7 +109,7 @@ class Classifier:
         # Return the evaluation results
         return model_results, probabilities
 
-    def save_result_and_probabilities(self, results: dict, probabilities: dict, type: str) -> None:
+    def save_result_and_probabilities(self, results: dict, probabilities: dict, type: str, save_visible: bool=False) -> None:
         """
             Save the results and probabilities of the classifier evaluation to CSV/JSON
 
@@ -117,16 +117,25 @@ class Classifier:
                 results (dict): Dictionary containing evaluation results
                 probabilities (dict): Dictionary containing predicted probabilities
                 type (str): Type of evaluation (e.g., "tuning", "test", "validation", "final")
+                save_visible (bool): Whether to save the results and probabilities to repo
         """
+        
+        if save_visible is None or not save_visible:
+            output_path = os.path.join(self.output_path, "other")
+            if not os.path.exists(output_path):
+                os.makedirs(output_path, exist_ok=True)
+        else:
+            output_path = self.output_path
+            
         # Construct output directory path
-        output_file = os.path.join(self.output_path, f"{type}_probabilities.csv")
+        output_file = os.path.join(output_path, f"probabilities_{type}.csv")
         # Save probabilities to CSV
 
         probabilities.to_csv(output_file, index=False)
         print(f"[INFO] - classifier.py - {type} probabilities saved to {output_file}")
 
         # Construct output directory path for results
-        output_file = os.path.join(self.output_path, f"{type}_results.json")
+        output_file = os.path.join(output_path, f"results_{type}.json")
         # Save evaluation results to JSON file
         with open(output_file, 'w') as f:
             json.dump(results, f, indent=4, default=str)
@@ -150,16 +159,24 @@ class Classifier:
         # Return the dictionary containing predictions from all models
         return predictions
 
-    def save_models(self) -> None:
+    def save_models(self, version) -> None:
         """
             Save the trained models to disk
         """
         if not self.output_path:
             raise ValueError("[ERROR] - classifier.py - Output path is not set. Please provide a valid output path to save models.")
         
+        
+        models_dir = os.path.join(self.output_path, "models")
+        # Check if directory exists, if not create it
+        if not os.path.exists(models_dir):
+            os.makedirs(models_dir)
+        
+
+        
         # Iterate through each trained model and save it to the specified output path
         for name, model in self.trained_models.items():
-            model_file = os.path.join(self.output_path, f"{name}_model.pkl")
+            model_file = os.path.join(models_dir, f"{name}_{version}_model.pkl")
             try:
                 joblib.dump(model, model_file)
                 print(f"    [INFO] - classifier.py - Saved model {name} to {model_file}")
@@ -178,8 +195,6 @@ class Classifier:
 
         for name, model in self.trained_models.items():
             print(f"[INFO] - classifier.py - Visualizing model: {model.__class__.__name__}")
-            print("X shape:", X.shape)
-            print("y shape:", y.shape)
             # Check if X has more than 2 features, if so, apply PCA to reduce to 2D
             if X.shape[1] > 2:
                 # Initialize PCA to reduce to 2 components
@@ -198,10 +213,6 @@ class Classifier:
             # Standardize the training and validation data
             scaler = StandardScaler()
             X_plot= scaler.fit_transform(X_plot)
-
-            # Print the shapes of the transformed data
-            print("X shape:", X.shape)
-            print("y shape:", y.shape)
             
             # Plot decision boundary using sklearn's from_estimator
             disp = DecisionBoundaryDisplay.from_estimator(
@@ -263,7 +274,38 @@ class Classifier:
             plt.tight_layout()
             #plt.show()
             plt.savefig(f"images/{name}_{version}_calibration_curve.png", dpi=300, bbox_inches='tight')
+            
+    def create_importance_dashboard(self, X, y, feature_names):
+        """ 
+            Create feature importance plots for the trained models.
+            This method calculates feature importances for tree-based models, coefficients for linear models,
+            and uses permutation importance for other models. It then plots the top features across all models.
+        """
         
+        
+        results = {}
+        
+        for name, model in self.trained_models.items():
+            if hasattr(model.named_steps['clf'], 'feature_importances_'):
+                # Tree-based
+                imp = model.named_steps['clf'].feature_importances_
+            elif hasattr(model.named_steps['clf'], 'coef_'):
+                # Linear models
+                imp = np.abs(model.named_steps['clf'].coef_[0])
+            else:
+                # Others use permutation importance
+                r = permutation_importance(model, X, y, n_repeats=5)
+                imp = r.importances_mean
+                
+            results[name] = pd.Series(imp, index=feature_names)
+            results = pd.DataFrame(results).sort_index()
+            # Plot top 10 features across models
+            plt.figure(figsize=(12,8))
+            results.mean(axis=1).sort_values(ascending=False)[:6].plot.barh()
+            plt.title('Consensus Top Features Across Models')
+            plt.tight_layout()
+            plt.savefig("images/feature_importance.png", dpi=300, bbox_inches='tight')
+
     def visualize_CV_boxplots(self, scoring: str) -> None:
             """
             Visualize the cross-validation scores using boxplots.
@@ -384,7 +426,6 @@ class TrainClassifier(Classifier):
         # And the corresponding labels
         self.y_train_sub = self.y_train.iloc[self.train_sub_idx]
         self.y_val = self.y_train.iloc[self.val_idx]
-        
         print(f"[INFO] - classifier.py - Finished loading and splitting dataset")
 
         # Verify the splits to ensure they are valid
@@ -468,7 +509,7 @@ class TrainClassifier(Classifier):
                 n_iter=50,  # Number of parameter combinations to try
                 random_state=self.random_state,
                 n_jobs=-1,  # Use all available cores for parallel processing
-                verbose=1  # Show progress during tuning
+                verbose=1,  # Show progress during tuning
             )
 
             # Fit the distribution search on the training subset

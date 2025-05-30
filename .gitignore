@@ -187,3 +187,14 @@ util/annotation_analysis_util.py
 # Ignore test files and directories
 result/testing/
 images
+
+
+!data/images/
+!data/lesion_masks/
+data/images/ 
+data/lesion_masks/**
+# Ignore test files and directories,
+result/testing/
+result/other/
+images
+result/cv_results
