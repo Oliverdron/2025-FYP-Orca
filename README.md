@@ -35,18 +35,25 @@ The following steps should be followed.
 - Remove any models that do not correspond to the name of the main file(extended/baseline) from result/models
 - Delete the `dataset.csv` from base directory
 - In one of the main files (eg. `main_baseline.py`), delete everything after **clf=TrainClassifier** line until the end of main
-- Initialize a `LoadClassifier` object with:
-    `model_path(base/"result"/"models"),`
-    `output_path,base_dir(base),`
-    `feature_names(list(FEATURES.keys()))` parameters
+- Initialize a `LoadClassifier` object with the following parameters:
+```
+  LoadClassifier(
+      model_path(base/"result"/"models"),
+      output_path,
+      base_dir(base),
+      feature_names(list(FEATURES.keys()))
+  )
+```
 - Load dataset using `load_dataset(source="dataset.csv")`
 - Put in the following line:
-    `clf.save_result_and_probabilities(`
-    `    *clf.evaluate_classifiers(clf.X_test, clf.y_test),`
-    `    *clf.evaluate_classifiers(clf.X, clf.y),`
-    `    type="baseline",`
-    `    save_visible=True`
-    `)`
+```
+clf.save_result_and_probabilities(
+    *clf.evaluate_classifiers(clf.X_test, clf.y_test),
+    *clf.evaluate_classifiers(clf.X, clf.y),
+    type="baseline",
+    save_visible=True
+)
+```
 - After this, the results and the probabilities should be made in the result folder for each models.
 - You can create plots using: `clf.visualize(clf.X, clf.y, "name")`
 
