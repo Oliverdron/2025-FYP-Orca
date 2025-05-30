@@ -44,13 +44,15 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.feature_selection import RFE
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV, StratifiedGroupKFold, TunedThresholdClassifierCV, LearningCurveDisplay, RepeatedStratifiedKFold, RandomizedSearchCV
 from sklearn.model_selection import train_test_split, cross_validate, learning_curve, cross_val_score
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, precision_score, recall_score, f1_score, roc_auc_score, roc_curve, auc, precision_recall_curve
+from sklearn.preprocessing import StandardScaler, QuantileTransformer
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, precision_score, recall_score, f1_score, roc_auc_score, roc_curve, auc, precision_recall_curve, make_scorer
 from sklearn.pipeline import Pipeline
 from sklearn.decomposition import PCA
 from sklearn.inspection import DecisionBoundaryDisplay
+from sklearn.inspection import permutation_importance
 from sklearn.calibration import calibration_curve
 from xgboost import XGBClassifier, XGBRegressor
+from sklearn.feature_selection import SelectFromModel
 
 # Classes
 from util.img_util import Dataset, Record
@@ -63,7 +65,8 @@ ALL_CLASSIFIERS = {
     ]),
     "rf": Pipeline([
         ("scaler", StandardScaler()),
-        ("clf", RandomForestClassifier(n_jobs=-1, random_state=42))
+        #('feature_selector', SelectFromModel(LogisticRegression(penalty='l2'))),
+        ("clf", RandomForestClassifier(max_depth=10,min_samples_leaf=5, class_weight='balanced', max_samples=0.7))
     ]), 
     "mlp": Pipeline([
         ("scaler", StandardScaler()),
@@ -75,7 +78,7 @@ ALL_CLASSIFIERS = {
     ]),
     "svc": Pipeline([
         ("scaler", StandardScaler()),
-        ("clf", SVC(kernel='linear', random_state=42, verbose=0))
+        ("clf", SVC(kernel='linear', random_state=42, verbose=0, probability=True))
     ]),
     "gb": Pipeline([
         ("scaler", StandardScaler()),
@@ -113,11 +116,17 @@ ALL_FEATURES = {
 ALL_PARAM_DISTR = {
     "mlp": 
     {
-    'clf__hidden_layer_sizes': [(64,), (128,), (64, 32), (128, 64)], 
-    'clf__activation': ['relu', 'tanh'], 
-    'clf__alpha': [0.0001, 0.001, 0.01],
-    'clf__learning_rate_init': [0.001, 0.0001],
-    'clf__batch_size': [32, 64] 
+    'clf__hidden_layer_sizes': [(50,), (100,), (50, 50), (100, 50), (30, 30, 30)],
+    'clf__activation': ['relu', 'tanh'],  # Avoid 'logistic' for deep nets
+    'clf__alpha': np.logspace(-5, -1, 20),  # L2 regularization
+    'clf__learning_rate_init': [0.001, 0.005, 0.01],
+    'clf__batch_size': [32, 64, 128],  # Smaller batches for medical data
+    'clf__early_stopping': [True],  # Critical for medical applications
+    'clf__validation_fraction': [0.1, 0.2],
+    'clf__beta_1': [0.9, 0.95],  # Adam optimizer params
+    'clf__beta_2': [0.999, 0.9999],
+    'clf__solver': ['adam'],  # Better than 'sgd' for medical imaging
+    'clf__max_iter': [500, 1000]  # Allow sufficient convergence
     },
        "lr": [
         # l1 penalty
@@ -145,7 +154,7 @@ ALL_PARAM_DISTR = {
             'clf__max_iter': [100, 200, 500]
         },
 
-        # no penalty (only supported with saga and scikit-learn ≥0.22)
+        # no penalty (only supported with saga solveR )
         {
             'clf__penalty': [None],
             'clf__solver': ['saga'],
@@ -155,34 +164,60 @@ ALL_PARAM_DISTR = {
     ,
     "rf" :
     {
-    'clf__n_estimators': [100, 200, 500],                  # Number of trees
-    'clf__max_depth': [None, 10, 20, 30],                  # Max depth of trees
-    'clf__min_samples_split': [2, 5, 10],                  # Min samples to split an internal node
-    'clf__min_samples_leaf': [1, 2, 4],                    # Min samples at a leaf node
-    'clf__max_features': ['sqrt', 'log2', None],           # Number of features to consider at split
-    'clf__bootstrap': [True, False],                       # Whether bootstrap samples are used
-    'clf__criterion': ['gini', 'entropy']                  # Splitting criteria
+    'clf__max_depth': [10, 15, 20],  
+    'clf__min_samples_split': [10, 20],  
+    'clf__min_samples_leaf': [5, 10],  
+    'clf__max_features': ['sqrt'],  # Reduced complexity
+    'clf__n_estimators': [100],  # Fixed for stability
+    'clf__max_samples': [0.6, 0.7],  # Subsampling
+    'clf__ccp_alpha': [0.0, 0.01, 0.1]  
     },
     "xgb" :
-        {
-    'clf__n_estimators': [100, 200, 300],
-    'clf__max_depth': [3, 5, 7],
-    'clf__learning_rate': [0.01, 0.1, 0.2],
-    'clf__subsample': [0.8, 1.0],
-    'clf__colsample_bytree': [0.6, 1.0],
-    'clf__gamma': [0, 0.1, 0.5],
-    'clf__reg_alpha': [0, 0.01, 0.1],    # L1 regularization
-    'clf__reg_lambda': [1, 2.0],    # L2 regularization
-    'clf__scale_pos_weight': [1, 2]   # Useful if dataset is imbalanced
-        },
+    {
+    'clf__n_estimators': [100, 200, 300],  # Fewer trees than default (medical data is often smaller)
+    'clf__max_depth': [3, 5, 7, 10],  # Shallower trees prevent overfitting to image artifacts
+    'clf__learning_rate': [0.01, 0.05, 0.1],  # Lower rates for stable convergence
+    'clf__subsample': [0.7, 0.8, 0.9],  # Stochastic sampling
+    'clf__colsample_bytree': [0.7, 0.8, 1.0],
+    'clf__gamma': [0, 0.1, 0.2],  # Minimum loss reduction (pruning)
+    'clf__reg_alpha': [0, 0.1, 1],  # L1 regularization
+    'clf__reg_lambda': [0, 0.1, 1],  # L2 regularization
+    'clf__scale_pos_weight': [1, 1.5, 2]  # Adjust for slight class imbalance
+    },
     "knn" :
         {
-    'clf__n_neighbors': [3, 5, 7, 11],
-    'clf__weights': ['uniform', 'distance'],
-    'clf__metric': ['euclidean', 'manhattan', 'minkowski'],  # Distance metrics
-    'clf__leaf_size': [30, 40, 50],  # Leaf size for KDTree or BallTree
-    'clf__p': [1, 2]  # p=1 (manhattan), p=2 (euclidean); used with minkowski
-    }
+    'clf__n_neighbors': [3, 5, 7, 10],  # Fewer neighbors for rare cancer cases
+    'clf__weights': ['uniform', 'distance'],  # Distance weighting helps with outliers
+    'clf__metric': ['euclidean', 'manhattan', 'minkowski'],
+    'clf__p': [1, 2],  # Power for Minkowski metric (1=manhattan, 2=euclidean)
+    'clf__algorithm': ['auto', 'ball_tree'],  # Ball_tree better for high-dim medical features
+    'clf__leaf_size': [15, 30, 45]
+},
+    "svc" : {
+    'clf__C': [0.01, 0.1, 1, 10, 30],  # 10 values (0.001 to 100)
+    'clf__kernel': ['rbf', 'linear'],  # Poly often too slow for medical images
+    'clf__gamma': ['scale', 'auto'] + list(np.logspace(-1, 1, 3)),  # 7 options
+    'clf__class_weight': [None, 'balanced', {0:1, 1:2.5}],
+    'clf__shrinking': [True, False]
+},
+    "gb": {
+    # Core parameters
+    'clf__n_estimators': [100, 200, 300],  # Fewer trees than default (medical data is often smaller)
+    'clf__learning_rate': [0.01, 0.05, 0.1],  # Lower rates for stable convergence
+    'clf__max_depth': [3, 4, 5],  # Shallower trees prevent overfitting to image artifacts
+    'clf__min_samples_split': [10, 20],  # Higher than default for medical robustness
+    'clf__min_samples_leaf': [5, 10],  # Conservative leaf sizes
+    
+    # Medical-specific tuning
+    'clf__max_features': ['sqrt', None],  # Fewer features for high-dim medical data
+    'clf__subsample': [0.8, 0.9],  # Stochastic gradient boosting
+    'clf__ccp_alpha': [0.0, 0.001, 0.01],  # Post-pruning for simpler trees
+    'clf__loss': ['log_loss', 'exponential'],  # Alternative losses
+    
+    # Class imbalance handling
+    'clf__init': [None, 'zero'],  # For severe imbalance
+    'clf__validation_fraction': [0.1, 0.2]  # Early stopping
+}
     
 }
 
